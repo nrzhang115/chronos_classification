@@ -194,7 +194,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     #path = Path(__file__).parent / "kernelsynth-data-{}.arrow"
     
-    batch_size = 10000  # Define a manageable batch size
+    batch_size = 32  # Define a manageable batch size
     total_batches = args.num_series // batch_size
 
     for batch in tqdm(range(args.resume, total_batches)):
