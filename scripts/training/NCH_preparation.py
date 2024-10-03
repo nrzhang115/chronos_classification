@@ -73,18 +73,27 @@ def process_nch_data(psg_fnames, ann_fnames, select_ch):
             print(f"Skipping {psg_fname} due to lack of valid data.")
             continue
 
-        # Prepare the time series entry
-        entry = {
-            "start": start_time,  # Use "Lights Off" time or the first event as the start time
-            "target": labels  # Sleep stage labels for this file
-        }
-        data_list.append(entry)
-
+        # Validate the entry
+        # Ensure that the data_list entries are correctly formatted and non-empty
+        if isinstance(start_time, np.datetime64) and len(labels) > 0:
+            entry = {
+                "start": start_time,
+                "target": labels
+            }
+            data_list.append(entry)
+        else:
+            print(f"Invalid data in {psg_fname} or {ann_fname}. Skipping this file.")
+            
     return data_list
 
 def save_to_arrow(data_list, output_dir):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
+        
+    # Check if data_list is empty
+    if len(data_list) == 0:
+        print("No valid data to save.")
+        return
 
     path = os.path.join(output_dir, 'nch_sleep_data.arrow')
     ArrowWriter(compression="lz4").write_to_file(
