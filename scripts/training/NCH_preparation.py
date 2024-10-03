@@ -125,6 +125,15 @@ def main():
     # Get all PSG (.edf) and annotation (.tsv) files
     psg_fnames = glob.glob(os.path.join(args.data_dir, "*.edf"))
     ann_fnames = glob.glob(os.path.join(args.data_dir, "*.tsv"))
+    
+    # Debug
+    # Check if files are loaded correctly
+    print(f"Found {len(psg_fnames)} .edf files")
+    print(f"Found {len(ann_fnames)} .tsv files")
+    if len(psg_fnames) == 0 or len(ann_fnames) == 0:
+        print("Error: No .edf or .tsv files found in the specified directory.")
+        return
+    
     psg_fnames.sort()
     ann_fnames.sort()
 
