@@ -193,7 +193,7 @@ if __name__ == "__main__":
     parser.add_argument("--resume", type=int, default=0, help="Batch to resume from")  
     
     args = parser.parse_args()
-    path = Path(__file__).parent / "kernelsynth-data-{}.arrow"
+    # path = Path(__file__).parent / "kernelsynth-data-{}.arrow"
     
     batch_size = args.batch_size
     total_batches = args.num_series // batch_size
@@ -201,7 +201,7 @@ if __name__ == "__main__":
     # Start processing from the resume point
 
     for batch in tqdm(range(args.resume, total_batches)):
-        batch_path = str(path).format(batch)
+        batch_path = Path(f"kernelsynth-data-batch-{batch}.arrow")
         
         # Skip the batch if it already exists (previously processed)
         if batch_path.exists(batch_path):
