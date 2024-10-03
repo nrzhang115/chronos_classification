@@ -12,7 +12,7 @@ def check_annotations(df):
         try:
             event_dict[x.lower()] += 1
         except:
-            pass
+            continue
 
     return any(event_dict.values())
 

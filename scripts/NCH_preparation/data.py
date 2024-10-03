@@ -78,7 +78,7 @@ def contains_specified_events(annotations, event_dict):
     return any(event in event_dict for event in annotations.description)
 
 # Extract Raw EEG Signals with Downsampling
-def get_raw_eeg_and_labels(name, data_dir, select_ch, target_sampling_rate=TARGET_SAMPLING_RATE):
+def get_raw_eeg_and_labels_for_chronos(name, data_dir, select_ch, target_sampling_rate=TARGET_SAMPLING_RATE):
     raw = load_study(name)
     current_sampling_rate = int(raw.info['sfreq'])
     
