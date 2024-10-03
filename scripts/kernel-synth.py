@@ -204,7 +204,7 @@ if __name__ == "__main__":
         batch_path = path.format(batch)
         
         # Skip the batch if it already exists (previously processed)
-        if Path(batch_path).exists(batch_path):
+        if Path(batch_path).exists():
             print(f"Batch {batch} already exists, skipping...")
             continue
 
