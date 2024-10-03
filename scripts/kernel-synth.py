@@ -5,6 +5,7 @@ import argparse
 import functools
 from pathlib import Path
 from typing import Optional
+import os
 
 import numpy as np
 from gluonts.dataset.arrow import ArrowWriter
@@ -186,15 +187,32 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-N", "--num-series", type=int, default=1000_000)
     parser.add_argument("-J", "--max-kernels", type=int, default=5)
+    
+    # Resume when the process was terminated
+    parser.add_argument("--resume", type=int, default=0, help="Batch to resume from")
+    
     args = parser.parse_args()
-    path = Path(__file__).parent / "kernelsynth-data.arrow"
+    #path = Path(__file__).parent / "kernelsynth-data-{}.arrow"
+    
+    batch_size = 10000  # Define a manageable batch size
+    total_batches = args.num_series // batch_size
+
+    for batch in tqdm(range(args.resume, total_batches)):
+        batch_path = Path(f"kernelsynth-data-batch-{batch}.arrow")
+        
+        # Skip the batch if it already exists (previously processed)
+        if os.path.exists(batch_path):
+            print(f"Batch {batch} already exists, skipping...")
+            continue
 
     generated_dataset = Parallel(n_jobs=-1)(
         delayed(generate_time_series)(max_kernels=args.max_kernels)
-        for _ in tqdm(range(args.num_series))
+        # for _ in tqdm(range(args.num_series))
+        for _ in range(batch_size)
     )
 
     ArrowWriter(compression="lz4").write_to_file(
         generated_dataset,
-        path=path,
+        path=batch_path,     
     )
+    print(f"Batch {batch} saved.")
