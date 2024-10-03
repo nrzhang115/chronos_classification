@@ -201,7 +201,7 @@ if __name__ == "__main__":
     # Start processing from the resume point
 
     for batch in tqdm(range(args.resume, total_batches)):
-        batch_path = path.format(batch)
+        batch_path = str(path).format(batch)
         
         # Skip the batch if it already exists (previously processed)
         if batch_path.exists(batch_path):
