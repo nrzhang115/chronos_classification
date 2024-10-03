@@ -26,8 +26,14 @@ def extract_sleep_stages(ann_file):
     """Extract sleep stages from the annotation file without segmenting into epochs."""
     df = pd.read_csv(ann_file, sep="\t")
     
+    # Print the first few rows of the annotation file for debugging
+    print(f"Preview of annotation file {ann_file}:\n", df.head())
+    
     # Extract onset and description of sleep stages without splitting into epochs
     sleep_stages = df[df['description'].str.startswith("Sleep stage")]
+    
+    # Debug
+    print(f"Extracted {len(sleep_stages)} sleep stage entries from {ann_file}")
 
     # Prepare continuous time series without pre-defining epoch lengths
     labels = [(row['onset'], ann2label.get(row['description'], 5)) for _, row in sleep_stages.iterrows()]
@@ -59,6 +65,10 @@ def process_nch_data(psg_fnames, ann_fnames, select_ch):
         raw = read_raw_edf(psg_fname, preload=True)
         raw.pick_channels([select_ch])  # Pick the specific EEG channel
 
+        # Debug
+        print(f"EEG data shape for {psg_fname}: {raw.get_data().shape}")
+        
+        
         # Extract the start time from the annotation file (based on "Lights Off" or the very beginning)
         start_time_sec = extract_start_time(ann_fname)
         
