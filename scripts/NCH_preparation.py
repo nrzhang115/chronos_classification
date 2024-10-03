@@ -57,6 +57,13 @@ def process_nch_data(psg_fnames, ann_fnames, select_ch):
     for psg_fname, ann_fname in zip(psg_fnames, ann_fnames):
         # Read EEG data using MNE
         raw = read_raw_edf(psg_fname, preload=True)
+        
+        # Check if the selected channel exists
+        # Skipping the file if not
+        if select_ch not in raw.info['ch_names']:
+            print(f"Channel {select_ch} not found in {psg_fname}. Skipping this file.")
+            continue
+        
         raw.pick_channels([select_ch])  # Pick the specific EEG channel
 
         # Extract the start time from the annotation file (based on "Lights Off" or the very beginning)
