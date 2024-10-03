@@ -187,21 +187,24 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-N", "--num-series", type=int, default=1000_000)
     parser.add_argument("-J", "--max-kernels", type=int, default=5)
-    
-    # Resume when the process was terminated
-    parser.add_argument("--resume", type=int, default=0, help="Batch to resume from")
+    #Add batch size
+    parser.add_argument("--batch-size", type=int, default=10000)  
+    #Add resume argument
+    parser.add_argument("--resume", type=int, default=0, help="Batch to resume from")  
     
     args = parser.parse_args()
-    #path = Path(__file__).parent / "kernelsynth-data-{}.arrow"
+    path = Path(__file__).parent / "kernelsynth-data-{}.arrow"
     
-    batch_size = 32  # Define a manageable batch size
+    batch_size = args.batch_size
     total_batches = args.num_series // batch_size
+    
+    # Start processing from the resume point
 
     for batch in tqdm(range(args.resume, total_batches)):
-        batch_path = Path(f"kernelsynth-data-batch-{batch}.arrow")
+        batch_path = path.format(batch)
         
         # Skip the batch if it already exists (previously processed)
-        if os.path.exists(batch_path):
+        if batch_path.exists(batch_path):
             print(f"Batch {batch} already exists, skipping...")
             continue
 
