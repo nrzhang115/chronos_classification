@@ -2,16 +2,17 @@
 # Extract the sleep stages in NCH dataset and convert into GluontTS-compatible arrow file 
 
 import argparse
-import os
 import glob
+import os
 import numpy as np
 import pandas as pd
 from gluonts.dataset.arrow import ArrowWriter
 from tqdm.auto import tqdm
 from mne.io import read_raw_edf
 from datetime import datetime
+import sleep_study as ss
 
-# Sleep stage mappings (unchanged from the previous script)
+# Sleep stage mappings
 ann2label = {
     "Sleep stage W": 0,   # Wake
     "Sleep stage N1": 1,  # N1
@@ -19,21 +20,14 @@ ann2label = {
     "Sleep stage N3": 3,  # N3
     "Sleep stage R": 4,   # REM
     "Sleep stage ?": 5,   # Unknown
-
 }
 
 def extract_sleep_stages(ann_file):
     """Extract sleep stages from the annotation file without segmenting into epochs."""
     df = pd.read_csv(ann_file, sep="\t")
-    
-    # Print the first few rows of the annotation file for debugging
-    print(f"Preview of annotation file {ann_file}:\n", df.head())
-    
-    # Extract onset and description of sleep stages without splitting into epochs
+
+    # Filter sleep stage rows
     sleep_stages = df[df['description'].str.startswith("Sleep stage")]
-    
-    # Debug
-    print(f"Extracted {len(sleep_stages)} sleep stage entries from {ann_file}")
 
     # Prepare continuous time series without pre-defining epoch lengths
     labels = [(row['onset'], ann2label.get(row['description'], 5)) for _, row in sleep_stages.iterrows()]
@@ -46,7 +40,7 @@ def extract_start_time(ann_file):
 
     # Look for the "Lights Off" event to define the start time
     lights_off_event = df[df['description'] == 'Lights Off']
-    
+
     if not lights_off_event.empty:
         # Extract the onset time for the "Lights Off" event
         start_time = lights_off_event['onset'].values[0]
@@ -56,7 +50,7 @@ def extract_start_time(ann_file):
         first_event = df['onset'].min()
         print(f"No 'Lights Off' event found in {ann_file}. Using the very beginning (onset={first_event}) as start time.")
         return first_event
-    
+
 def process_nch_data(psg_fnames, ann_fnames, select_ch):
     data_list = []
 
@@ -65,13 +59,9 @@ def process_nch_data(psg_fnames, ann_fnames, select_ch):
         raw = read_raw_edf(psg_fname, preload=True)
         raw.pick_channels([select_ch])  # Pick the specific EEG channel
 
-        # Debug
-        print(f"EEG data shape for {psg_fname}: {raw.get_data().shape}")
-        
-        
         # Extract the start time from the annotation file (based on "Lights Off" or the very beginning)
         start_time_sec = extract_start_time(ann_fname)
-        
+
         # Convert start time to datetime64 format
         start_time = np.datetime64(datetime.fromtimestamp(start_time_sec).isoformat())
 
@@ -83,33 +73,29 @@ def process_nch_data(psg_fnames, ann_fnames, select_ch):
             print(f"Skipping {psg_fname} due to lack of valid data.")
             continue
 
-        # Validate the entry
-        # Ensure that the data_list entries are correctly formatted and non-empty
-        if isinstance(start_time, np.datetime64) and len(labels) > 0:
-            entry = {
-                "start": start_time,
-                "target": labels
-            }
-            data_list.append(entry)
-        else:
-            print(f"Invalid data in {psg_fname} or {ann_fname}. Skipping this file.")
-            
+        # Prepare the time series entry
+        entry = {
+            "start": start_time,  # Use "Lights Off" time or the first event as the start time
+            "target": [label[1] for label in labels]  # Extract the sleep stage labels
+        }
+        data_list.append(entry)
+
     return data_list
 
 def save_to_arrow(data_list, output_dir):
+    # Ensure the output directory exists
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-        
-    # Check if data_list is empty
-    if len(data_list) == 0:
-        print("No valid data to save.")
-        return
 
+    # Define the path for the arrow file
     path = os.path.join(output_dir, 'nch_sleep_data.arrow')
+
+    # Write the data list to an Arrow file
     ArrowWriter(compression="lz4").write_to_file(
-        data_list,
-        path=path,
+        data_list,   # List of data entries (time series)
+        path=path    # Output path for the arrow file
     )
+
     print(f"Data saved to {path}")
 
 def main():
@@ -125,15 +111,15 @@ def main():
     # Get all PSG (.edf) and annotation (.tsv) files
     psg_fnames = glob.glob(os.path.join(args.data_dir, "*.edf"))
     ann_fnames = glob.glob(os.path.join(args.data_dir, "*.tsv"))
-    
-    # Debug
-    # Check if files are loaded correctly
+
+    # Check if files are found
     print(f"Found {len(psg_fnames)} .edf files")
     print(f"Found {len(ann_fnames)} .tsv files")
+
     if len(psg_fnames) == 0 or len(ann_fnames) == 0:
         print("Error: No .edf or .tsv files found in the specified directory.")
         return
-    
+
     psg_fnames.sort()
     ann_fnames.sort()
 
