@@ -25,12 +25,16 @@ def save_to_arrow(data_list, output_dir):
     path = os.path.join(output_dir, 'nch_sleep_data.arrow')
 
     # Write the data list to an Arrow file
-    ArrowWriter(compression="lz4").write_to_file(
-        data_list,   # List of data entries (time series)
-        path=path    # Output path for the arrow file
-    )
+    if len(data_list) > 0:
+        ArrowWriter(compression="lz4").write_to_file(
+            data_list,   # List of data entries (time series)
+            path=path    # Output path for the arrow file
+        )
+        print(f"Data saved to {path}")
+    else:
+        print(f"No valid data to save in {output_dir}")
+        
 
-    print(f"Data saved to {path}")
 
 
 def create_dataset(output_dir='~/sleep_study_dataset', percentage=100):
@@ -48,7 +52,7 @@ def create_dataset(output_dir='~/sleep_study_dataset', percentage=100):
         # Process each study and collect Chronos-compatible data
         data_list = ss.data.get_raw_eeg_and_labels_for_chronos(name, ss.data_dir, "EEG C4-M1")
 
-        if data_list:
+        if data_list and len(data_list) > 0:
             print(f"Processed {name}: {len(data_list)} entries")
             all_data.extend(data_list)
         else:

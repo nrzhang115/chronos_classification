@@ -98,7 +98,7 @@ def get_raw_eeg_and_labels_for_chronos(name, data_dir, select_ch, target_samplin
     
     for event in events:
         onset, label = event[[0, 2]]  # onset and event label
-        start = np.datetime64(datetime.fromtimestamp(onset / current_sampling_rate))  # Convert onset to timestamp
+        start = np.datetime64(int(onset / current_sampling_rate), 's')  
         data_list.append({
             "start": start,
             "target": label  # Ensure this aligns with Chronos' target field

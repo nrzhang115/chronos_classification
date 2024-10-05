@@ -70,7 +70,7 @@ def process_nch_data(psg_fnames, ann_fnames, select_ch):
         start_time_sec = extract_start_time(ann_fname)
 
         # Convert start time to datetime64 format
-        start_time = np.datetime64(datetime.fromtimestamp(start_time_sec).isoformat())
+        start_time = np.datetime64(int(start_time_sec), 's')
 
         # Extract continuous sleep stage labels from the annotation file
         labels = extract_sleep_stages(ann_fname)
