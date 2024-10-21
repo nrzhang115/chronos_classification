@@ -542,14 +542,14 @@ def save_tokenized_data(tokenized_data, output_dir):
 @app.command()
 @use_yaml_config(param_name="config")
 def main():
-    epoch_length_s = 30,
+    epoch_length_s = 30
     nch_arrow_path = "/srv/scratch/z5298768/chronos_classification/prepare_time_seires/C4-M1/nch_sleep_data.arrow"
     output_dir = "/srv/scratch/z5298768/chronos_classification/tokenization"
     
     # training_data_paths: str,
     # probability: Optional[str] = None,
-    context_length: int = 512,
-    prediction_length: int = 64,
+    context_length = 512
+    prediction_length = 64
     # min_past: int = 64,
     # max_steps: int = 200_000,
     # save_steps: int = 50_000,
@@ -560,27 +560,27 @@ def main():
     # shuffle_buffer_length: int = 100,
     # gradient_accumulation_steps: int = 2,
     # model_id: str = "google/t5-efficient-tiny",
-    model_type: str = "seq2seq",
+    model_type = "seq2seq"
     # random_init: bool = False,
     # tie_embeddings: bool = False,
     # output_dir: str = "./output/",
     # tf32: bool = True,
     # torch_compile: bool = True,
-    tokenizer_class: str = "MeanScaleUniformBins",
-    tokenizer_kwargs: str = "{'low_limit': -15.0, 'high_limit': 15.0}",
-    n_tokens: int = 4096,
-    n_special_tokens: int = 2,
-    pad_token_id: int = 0,
-    eos_token_id: int = 1,
-    use_eos_token: bool = True,
-    lr_scheduler_type: str = "linear",
-    warmup_ratio: float = 0.0,
-    dataloader_num_workers: int = 1,
-    max_missing_prop: float = 0.9,
-    num_samples: int = 20,
-    temperature: float = 1.0,
-    top_k: int = 50,
-    top_p: float = 1.0,
+    tokenizer_class = "MeanScaleUniformBins"
+    tokenizer_kwargs = {'low_limit': -15.0, 'high_limit': 15.0}
+    n_tokens = 4096
+    n_special_tokens = 2
+    pad_token_id = 0
+    eos_token_id = 1
+    # use_eos_token: bool = True,
+    # lr_scheduler_type: str = "linear",
+    # warmup_ratio: float = 0.0,
+    # dataloader_num_workers: int = 1,
+    # max_missing_prop: float = 0.9,
+    num_samples = 20
+    temperature = 1.0
+    top_k = 50
+    top_p = 1.0
     # seed: Optional[int] = None,
 
     # if tf32 and not (
