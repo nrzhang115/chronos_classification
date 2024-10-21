@@ -81,7 +81,7 @@ def process_nch_data(psg_fnames, ann_fnames, select_ch):
             print(f"Channel {select_ch} not found in {psg_fname}. Skipping this file.")
             continue
         
-        raw.pick_channels([select_ch])  # Pick the specific EEG channel
+        raw.pick([select_ch])  # Pick the specific EEG channel
         raw.resample(TARGET_SAMPLING_RATE)  # Downsample to target sampling rate
         eeg_data = raw.get_data()[0]  # Get EEG data for the selected channel
 
