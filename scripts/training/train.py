@@ -65,23 +65,7 @@ def log_on_main(msg: str, logger: logging.Logger, log_level: int = logging.INFO)
     """
     if is_main_process():
         logger.log(log_level, msg)
-
-def split_into_epochs(data, epoch_length_s=30):
-    """
-    Split the time series data into 30-second epochs for tokenization.
-    """
-    sampling_rate = 100 # Sampling rate at 100Hz
-    epoch_length = epoch_length_s * sampling_rate
-
-    # Split the sleep stages into epochs
-    epochs = [
-        data[i : i + epoch_length]
-        for i in range(0, len(data), epoch_length)
-        if len(data[i : i + epoch_length]) == epoch_length
-    ]
-
-    return epochs
-
+        
 # def get_training_job_info() -> Dict:
 #     """
 #     Returns info about this training job.
@@ -544,7 +528,6 @@ def save_tokenized_data(tokenized_data, output_dir):
 @app.command()
 @use_yaml_config(param_name="config")
 def main():
-    epoch_length_s = 30
     nch_arrow_path = "/srv/scratch/z5298768/chronos_classification/prepare_time_seires/C4-M1/nch_sleep_data.arrow"
     output_dir = "/srv/scratch/z5298768/chronos_classification/tokenization"
     
@@ -641,10 +624,8 @@ def main():
             log_on_main(f"Skipping entry {entry_index + 1} as it has no valid sleep stages", logger)
             continue
         
-        # Split into epochs and tokenize
-        epochs = split_into_epochs(sleep_stages, epoch_length_s=epoch_length_s)
-        print(f"Generated {len(epochs)} epochs from {len(sleep_stages)} sleep stages.")
-        tokenized_epochs = tokenize_data(epochs, tokenizer)
+        # Tokenize the epochs directly
+        tokenized_epochs = tokenize_data(sleep_stages, tokenizer)
         tokenized_data.extend(tokenized_epochs)
         
     # Log tokenization result
