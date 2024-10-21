@@ -608,7 +608,7 @@ def main():
     # Initialize the tokenizer
     # tokenizer_kwargs = json.loads(tokenizer_kwargs)
     chronos_config = ChronosConfig(
-        tokenizer_class=tokenizer_class,
+        tokenizer_class=str(tokenizer_class),
         tokenizer_kwargs=tokenizer_kwargs,
         n_tokens=n_tokens,
         n_special_tokens=n_special_tokens,
