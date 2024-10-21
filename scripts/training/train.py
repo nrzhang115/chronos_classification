@@ -522,7 +522,9 @@ def tokenize_data(data, tokenizer):
     """
     Tokenize the data using Chronos tokenizer.
     """
+    print(f"Tokenizing {len(data)} epochs.")
     tokenized_data = [tokenizer.tokenize(epoch) for epoch in data]
+    print(f"Tokenized {len(tokenized_data)} epochs.")
     return tokenized_data
 
 def save_tokenized_data(tokenized_data, output_dir):
@@ -641,6 +643,7 @@ def main():
         
         # Split into epochs and tokenize
         epochs = split_into_epochs(sleep_stages, epoch_length_s=epoch_length_s)
+        print(f"Generated {len(epochs)} epochs from {len(sleep_stages)} sleep stages.")
         tokenized_epochs = tokenize_data(epochs, tokenizer)
         tokenized_data.extend(tokenized_epochs)
         
