@@ -69,7 +69,7 @@ def split_into_epochs(eeg_signal, sampling_rate, epoch_length_s=30):
     ]
     return epochs
 
-def process_nch_data(psg_fnames, ann_fnames, select_ch, chunk_size=10):
+def process_nch_data(psg_fnames, ann_fnames, select_ch, output_dir, chunk_size=10):
     """
     Process the NCH dataset in chunks to save memory.
 
@@ -79,11 +79,11 @@ def process_nch_data(psg_fnames, ann_fnames, select_ch, chunk_size=10):
         select_ch: EEG channel to process.
         chunk_size: Number of studies to process per chunk to manage memory.
     """
-    data_list = []
-
     for chunk_start in range(0, len(psg_fnames), chunk_size):
         psg_chunk = psg_fnames[chunk_start:chunk_start + chunk_size]
         ann_chunk = ann_fnames[chunk_start:chunk_start + chunk_size]
+
+        data_list = []  # Reset data_list for each chunk
 
         for psg_fname, ann_fname in zip(psg_chunk, ann_chunk):
             # Read EEG data using MNE
@@ -120,7 +120,13 @@ def process_nch_data(psg_fnames, ann_fnames, select_ch, chunk_size=10):
             del raw
             gc.collect()  # Explicitly free memory
 
-    return data_list
+        # Save the processed chunk to Arrow file after each chunk
+        if data_list:
+            save_to_arrow(data_list, output_dir)
+
+        # Clear the data_list to free memory
+        del data_list
+        gc.collect()  # Ensure memory is freed after saving each chunk
 
 def save_to_arrow(data_list, output_dir):
     # Ensure the output directory exists
@@ -164,10 +170,8 @@ def main():
     ann_fnames.sort()
 
     # Process the NCH dataset
-    data_list = process_nch_data(psg_fnames, ann_fnames, args.select_ch)
+    process_nch_data(psg_fnames, ann_fnames, args.select_ch, args.output_dir)
 
-    # Save as Arrow file
-    save_to_arrow(data_list, args.output_dir)
 
 if __name__ == "__main__":
     main()
