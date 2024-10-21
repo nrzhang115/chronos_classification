@@ -606,7 +606,7 @@ def main():
     # Load the dataset from arrow file
     dataset = load_data(nch_arrow_path)
     # Initialize the tokenizer
-    tokenizer_kwargs = json.loads(tokenizer_kwargs)
+    # tokenizer_kwargs = json.loads(tokenizer_kwargs)
     chronos_config = ChronosConfig(
         tokenizer_class=tokenizer_class,
         tokenizer_kwargs=tokenizer_kwargs,
