@@ -542,7 +542,7 @@ def save_tokenized_data(tokenized_data, output_dir):
 @app.command()
 @use_yaml_config(param_name="config")
 def main():
-    epoch_length_s: int = 30,
+    epoch_length_s = 30,
     nch_arrow_path = "/srv/scratch/z5298768/chronos_classification/prepare_time_seires/C4-M1/nch_sleep_data.arrow"
     output_dir = "/srv/scratch/z5298768/chronos_classification/tokenization"
     
