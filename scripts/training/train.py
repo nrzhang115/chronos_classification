@@ -627,14 +627,28 @@ def main():
 
     tokenized_data = []
     
-    
-    # Split into 30-second epochs and tokenize
-    for entry in dataset:
+    # Start tokenization and track progress
+    log_on_main("Starting tokenization process...", logger)
+    for entry_index, entry in enumerate(dataset):
         sleep_stages = entry['target']
+        
+        # Log the current entry being processed
+        log_on_main(f"Processing entry {entry_index + 1} with {len(sleep_stages)} sleep stages", logger)
+        
+        if sleep_stages is None or len(sleep_stages) == 0:
+            log_on_main(f"Skipping entry {entry_index + 1} as it has no valid sleep stages", logger)
+            continue
+        
+        # Split into epochs and tokenize
         epochs = split_into_epochs(sleep_stages, epoch_length_s=epoch_length_s)
         tokenized_epochs = tokenize_data(epochs, tokenizer)
         tokenized_data.extend(tokenized_epochs)
+        
+    # Log tokenization result
+    log_on_main(f"Tokenization completed with {len(tokenized_data)} tokenized entries", logger)
 
+    # Save tokenized data
+    log_on_main(f"Saving tokenized data to {output_dir}", logger)
     # Save tokenized data
     save_tokenized_data(tokenized_data, output_dir)
 
