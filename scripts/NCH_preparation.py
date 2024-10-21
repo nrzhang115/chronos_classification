@@ -12,6 +12,9 @@ from mne.io import read_raw_edf
 from datetime import datetime
 import sleep_study as ss
 
+EPOCH_SEC_SIZE = ss.data.EPOCH_SEC_SIZE  # Use the predefined epoch size (30 seconds)
+TARGET_SAMPLING_RATE = ss.info.REFERENCE_FREQ  # Use the predefined target sampling rate (100Hz)
+
 # Sleep stage mappings
 ann2label = {
     "Sleep stage W": 0,   # Wake
@@ -51,6 +54,20 @@ def extract_start_time(ann_file):
         print(f"No 'Lights Off' event found in {ann_file}. Using the very beginning (onset={first_event}) as start time.")
         return first_event
 
+def split_into_epochs(eeg_signal, sampling_rate, epoch_length_s=30):
+    """
+    Split EEG signal into 30-second epochs.
+    """
+    epoch_length = epoch_length_s * sampling_rate
+
+    # Split the EEG signal into epochs
+    epochs = [
+        eeg_signal[i: i + epoch_length]
+        for i in range(0, len(eeg_signal), epoch_length)
+        if len(eeg_signal[i: i + epoch_length]) == epoch_length
+    ]
+    return epochs
+
 def process_nch_data(psg_fnames, ann_fnames, select_ch):
     data_list = []
 
@@ -65,6 +82,8 @@ def process_nch_data(psg_fnames, ann_fnames, select_ch):
             continue
         
         raw.pick_channels([select_ch])  # Pick the specific EEG channel
+        raw.resample(TARGET_SAMPLING_RATE)  # Downsample to target sampling rate
+        eeg_data = raw.get_data()[0]  # Get EEG data for the selected channel
 
         # Extract the start time from the annotation file (based on "Lights Off" or the very beginning)
         start_time_sec = extract_start_time(ann_fname)
@@ -79,13 +98,18 @@ def process_nch_data(psg_fnames, ann_fnames, select_ch):
         if len(labels) == 0:
             print(f"Skipping {psg_fname} due to lack of valid data.")
             continue
+        # Split the EEG signal into 30-second epochs
+        epochs = split_into_epochs(eeg_data, TARGET_SAMPLING_RATE, epoch_length_s=EPOCH_SEC_SIZE)
+        
+        # Prepare entries per epoch
+        for epoch, label in zip(epochs, labels):
+            entry = {
+                "start": start_time,  # Use "Lights Off" time or the first event as the start time
+                "target": label[1],  # Extract the sleep stage labels
+                "eeg": epoch.tolist()  # Save the EEG signal data for this epoch
+            }
+            data_list.append(entry)
 
-        # Prepare the time series entry
-        entry = {
-            "start": start_time,  # Use "Lights Off" time or the first event as the start time
-            "target": [label[1] for label in labels]  # Extract the sleep stage labels
-        }
-        data_list.append(entry)
 
     return data_list
 
