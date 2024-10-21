@@ -614,7 +614,14 @@ def main():
         n_special_tokens=n_special_tokens,
         pad_token_id=pad_token_id,
         eos_token_id=eos_token_id,
-        use_eos_token=True
+        use_eos_token=True,
+        context_length=context_length,  # Required for ChronosConfig
+        prediction_length=prediction_length,  # Required for ChronosConfig
+        model_type=model_type,  # Required for ChronosConfig
+        num_samples=num_samples,  # Required for ChronosConfig
+        temperature=temperature,  # Required for ChronosConfig
+        top_k=top_k,  # Required for ChronosConfig
+        top_p=top_p  # Required for ChronosConfig
     )
     tokenizer = chronos_config.create_tokenizer()
 
