@@ -11,6 +11,7 @@ from tqdm.auto import tqdm
 from mne.io import read_raw_edf
 from datetime import datetime
 import sleep_study as ss
+import gc 
 
 EPOCH_SEC_SIZE = ss.data.EPOCH_SEC_SIZE  # Use the predefined epoch size (30 seconds)
 TARGET_SAMPLING_RATE = ss.info.REFERENCE_FREQ  # Use the predefined target sampling rate (100Hz)
@@ -68,48 +69,56 @@ def split_into_epochs(eeg_signal, sampling_rate, epoch_length_s=30):
     ]
     return epochs
 
-def process_nch_data(psg_fnames, ann_fnames, select_ch):
+def process_nch_data(psg_fnames, ann_fnames, select_ch, chunk_size=10):
+    """
+    Process the NCH dataset in chunks to save memory.
+
+    Args:
+        psg_fnames: List of PSG (EEG) filenames.
+        ann_fnames: List of annotation filenames.
+        select_ch: EEG channel to process.
+        chunk_size: Number of studies to process per chunk to manage memory.
+    """
     data_list = []
 
-    for psg_fname, ann_fname in zip(psg_fnames, ann_fnames):
-        # Read EEG data using MNE
-        raw = read_raw_edf(psg_fname, preload=True)
-        
-        # Check if the selected channel exists
-        # Skipping the file if not
-        if select_ch not in raw.info['ch_names']:
-            print(f"Channel {select_ch} not found in {psg_fname}. Skipping this file.")
-            continue
-        
-        raw.pick([select_ch])  # Pick the specific EEG channel
-        raw.resample(TARGET_SAMPLING_RATE)  # Downsample to target sampling rate
-        eeg_data = raw.get_data()[0]  # Get EEG data for the selected channel
+    for chunk_start in range(0, len(psg_fnames), chunk_size):
+        psg_chunk = psg_fnames[chunk_start:chunk_start + chunk_size]
+        ann_chunk = ann_fnames[chunk_start:chunk_start + chunk_size]
 
-        # Extract the start time from the annotation file (based on "Lights Off" or the very beginning)
-        start_time_sec = extract_start_time(ann_fname)
+        for psg_fname, ann_fname in zip(psg_chunk, ann_chunk):
+            # Read EEG data using MNE
+            raw = read_raw_edf(psg_fname, preload=True)
 
-        # Convert start time to datetime64 format
-        start_time = np.datetime64(int(start_time_sec), 's')
+            # Skip if the selected channel does not exist
+            if select_ch not in raw.info['ch_names']:
+                print(f"Channel {select_ch} not found in {psg_fname}. Skipping this file.")
+                continue
 
-        # Extract continuous sleep stage labels from the annotation file
-        labels = extract_sleep_stages(ann_fname)
+            # Pick the specific EEG channel
+            raw.pick([select_ch])
 
-        # If there's no valid data, skip the file
-        if len(labels) == 0:
-            print(f"Skipping {psg_fname} due to lack of valid data.")
-            continue
-        # Split the EEG signal into 30-second epochs
-        epochs = split_into_epochs(eeg_data, TARGET_SAMPLING_RATE, epoch_length_s=EPOCH_SEC_SIZE)
-        
-        # Prepare entries per epoch
-        for epoch, label in zip(epochs, labels):
+            # Extract start time
+            start_time_sec = extract_start_time(ann_fname)
+            start_time = np.datetime64(int(start_time_sec), 's')
+
+            # Extract sleep stage labels
+            labels = extract_sleep_stages(ann_fname)
+
+            if len(labels) == 0:
+                print(f"Skipping {psg_fname} due to lack of valid data.")
+                continue
+
+            # Prepare the time series entry
             entry = {
-                "start": start_time,  # Use "Lights Off" time or the first event as the start time
-                "target": label[1],  # Extract the sleep stage labels
-                "eeg": epoch.tolist()  # Save the EEG signal data for this epoch
+                "start": start_time,
+                "target": [label[1] for label in labels]
             }
             data_list.append(entry)
 
+            # Clear memory for each study processed
+            raw.close()
+            del raw
+            gc.collect()  # Explicitly free memory
 
     return data_list
 
