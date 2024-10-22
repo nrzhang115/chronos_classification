@@ -519,6 +519,11 @@ def tokenize_data(data, tokenizer):
     else:
         data = np.array(data)
         print(f"Converted data to numpy array with shape: {data.shape}")
+        
+    # Reshape the data to 2D if necessary (e.g., (batch_size, seq_length))
+    if len(data.shape) == 1:
+        data = np.expand_dims(data, axis=0)  # Reshape to (1, seq_length)
+        print(f"Reshaped data to: {data.shape}")
     
     # Pass the entire data array to label_input_transform instead of looping over individual epochs
     try:
