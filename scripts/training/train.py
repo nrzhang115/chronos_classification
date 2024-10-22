@@ -500,6 +500,11 @@ def log_on_main(msg: str, logger: logging.Logger, log_level: int = logging.INFO)
 def load_data(arrow_file_path):
     """ Load the NCH dataset from the arrow file. """
     dataset = FileDataset(arrow_file_path, freq="s")
+    # Debug: print the first few entries to inspect their structure
+    for entry in itertools.islice(dataset, 5):  # Inspect first 5 entries
+        print(f"Entry structure: {entry}")
+        print(f"Sleep stages (target): {entry.get('target', None)}")
+        
     return dataset
 
 def tokenize_data(data, tokenizer):
@@ -632,6 +637,7 @@ def main():
     log_on_main("Starting tokenization process...", logger)
     for entry_index, entry in enumerate(dataset):
         sleep_stages = entry['target']
+        
         
         # Log the current entry being processed
         log_on_main(f"Processing entry {entry_index + 1} with {len(sleep_stages)} sleep stages", logger)
