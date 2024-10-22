@@ -678,8 +678,8 @@ def main():
             continue
         
         # Tokenize the epochs directly
-        tokenized_epochs = tokenize_data(sleep_stages, tokenizer)
-        tokenized_data.extend(tokenized_epochs)
+        tokenized_sleep_stages = tokenize_data(sleep_stages, tokenizer, context_length, prediction_length)
+        tokenized_data.extend(tokenized_sleep_stages)
         
     # Log tokenization result
     log_on_main(f"Tokenization completed with {len(tokenized_data)} tokenized entries", logger)
