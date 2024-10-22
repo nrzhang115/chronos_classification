@@ -720,14 +720,10 @@ def main():
     
     # ---- Token-to-Sleep-Stage Mapping Verification ---- #
     # Verify specific token IDs
-    token_id = 2172  # Example token ID to verify
-    decoded_token = tokenizer.convert_ids_to_tokens([token_id])
-    print(f"Token ID {token_id} corresponds to: {decoded_token}")
-
-    # Print token IDs for sleep stages 0-5
     for stage in range(6):  # Sleep stages 0 to 5
-        tokenized_stage = tokenizer.convert_tokens_to_ids([stage])
-        print(f"Sleep stage {stage} is tokenized as: {tokenized_stage}")
+        stage_array = np.array([stage], dtype=np.float32).reshape(1, -1)  # Create an array with the sleep stage
+        input_ids, attention_mask, scale = tokenizer.context_input_transform(torch.tensor(stage_array))
+        print(f"Sleep stage {stage} is tokenized as: {input_ids}, attention_mask: {attention_mask}, scale: {scale}")
     # -------------------------------------------------- #
 
     # raw_training_config = deepcopy(locals())
