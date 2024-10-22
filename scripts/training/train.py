@@ -717,6 +717,18 @@ def main():
     # Save tokenized data
     output_file = os.path.join(output_dir, 'tokenized_data.pt')
     save_tokenized_data(tokenized_data, output_file)
+    
+    # ---- Token-to-Sleep-Stage Mapping Verification ---- #
+    # Verify specific token IDs
+    token_id = 2172  # Example token ID to verify
+    decoded_token = tokenizer.convert_ids_to_tokens([token_id])
+    print(f"Token ID {token_id} corresponds to: {decoded_token}")
+
+    # Print token IDs for sleep stages 0-5
+    for stage in range(6):  # Sleep stages 0 to 5
+        tokenized_stage = tokenizer.convert_tokens_to_ids([stage])
+        print(f"Sleep stage {stage} is tokenized as: {tokenized_stage}")
+    # -------------------------------------------------- #
 
     # raw_training_config = deepcopy(locals())
     # output_dir = Path(output_dir)
