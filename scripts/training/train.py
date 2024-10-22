@@ -507,7 +507,10 @@ def tokenize_data(data, tokenizer):
     Tokenize the data using Chronos tokenizer.
     """
     print(f"Tokenizing {len(data)} epochs.")
-    tokenized_data = [tokenizer.tokenize(epoch) for epoch in data]
+    # Add this line to inspect the tokenizer object
+    print(dir(tokenizer))
+    
+    tokenized_data = [tokenizer.transform(epoch) for epoch in data]
     print(f"Tokenized {len(tokenized_data)} epochs.")
     return tokenized_data
 
