@@ -508,9 +508,9 @@ def tokenize_data(data, tokenizer):
     """
     print(f"Tokenizing {len(data)} epochs.")
     # Add this line to inspect the tokenizer object
-    print(dir(tokenizer))
+    # print(dir(tokenizer))
     
-    tokenized_data = [tokenizer.transform(epoch) for epoch in data]
+    tokenized_data = [tokenizer.label_input_transform(epoch, scale=None) for epoch in data]
     print(f"Tokenized {len(tokenized_data)} epochs.")
     return tokenized_data
 
