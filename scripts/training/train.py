@@ -536,11 +536,12 @@ def split_into_chunks(data, context_length, prediction_length):
 
 def tokenize_data(data, tokenizer, context_length, prediction_length):
     """
-    Tokenize the data using Chronos tokenizer.
+    Tokenize the data using Chronos tokenizer for sleep stage classification.
+    Handles both short and long sequences by splitting or padding.
     """
-    print(f"Tokenizing {len(data)} epochs.")
+    print(f"Tokenizing {len(data)} sleep stages.")
     
-     # Pad short sequences and split long ones
+    # Pad short sequences and split long ones
     if len(data) < context_length + prediction_length:
         print(f"Padding short sequence with length {len(data)}")
         data = pad_sequence(data, context_length, prediction_length)
@@ -553,13 +554,27 @@ def tokenize_data(data, tokenizer, context_length, prediction_length):
     
     tokenized_data = []
     for chunk in chunks:
-        chunk = np.expand_dims(chunk, axis=0)  # Add batch dimension
+        chunk = np.expand_dims(chunk, axis=0)  # Add batch dimension (reshape)
+        
         try:
-            tokenized_chunk = tokenizer.label_input_transform(chunk, scale=None)
-            tokenized_data.append(tokenized_chunk)
+            # Split the chunk into context (past) and prediction (future)
+            context_chunk = chunk[:, :-prediction_length]
+            prediction_chunk = chunk[:, -prediction_length:]  # Last part for prediction
+            
+            # Transform the context and labels using the appropriate Chronos tokenizer methods
+            input_ids, attention_mask, scale = tokenizer.context_input_transform(context_chunk)
+            labels, labels_mask = tokenizer.label_input_transform(prediction_chunk, scale)
+            
+            tokenized_data.append({
+                "input_ids": input_ids,
+                "attention_mask": attention_mask,
+                "labels": labels
+            })
+            
         except Exception as e:
             print(f"Error during tokenization: {e}")
             traceback.print_exc()
+    
     print(f"Tokenized {len(tokenized_data)} chunks.")
     return tokenized_data
 
