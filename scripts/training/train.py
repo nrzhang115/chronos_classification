@@ -6,7 +6,6 @@ import logging
 import os
 import re
 import sys
-import json
 import itertools
 import random
 from copy import deepcopy
@@ -581,16 +580,19 @@ def tokenize_data(data, tokenizer, context_length, prediction_length):
     return tokenized_data
 
 def save_tokenized_data(tokenized_data, output_dir):
-    """ Save the tokenized data to the output directory. """
-    # Ensure the output directory exists
+    """ Save the tokenized data as PyTorch tensors for LLM pipeline use. """
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-
-    # Save the tokenized data as JSON files, one per tokenized entry
     for idx, tokenized_entry in enumerate(tokenized_data):
-        output_file = os.path.join(output_dir, f'tokenized_entry_{idx}.json')
-        with open(output_file, 'w') as f:
-            json.dump(tokenized_entry, f)
+        output_file = os.path.join(output_dir, f'tokenized_entry_{idx}.pt')
+        
+        # Save as PyTorch tensors directly
+        torch.save({
+            "input_ids": tokenized_entry["input_ids"],
+            "attention_mask": tokenized_entry["attention_mask"],
+            "labels": tokenized_entry["labels"]
+        }, output_file)
+        
         print(f"Tokenized data saved to {output_file}")
 
 
