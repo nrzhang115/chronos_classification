@@ -507,10 +507,23 @@ def tokenize_data(data, tokenizer):
     Tokenize the data using Chronos tokenizer.
     """
     print(f"Tokenizing {len(data)} epochs.")
-    # Add this line to inspect the tokenizer object
-    # print(dir(tokenizer))
+    tokenized_data = []
     
-    tokenized_data = [tokenizer.label_input_transform(epoch, scale=None) for epoch in data]
+    for epoch in data:
+        # Debugging: Print the shape of each epoch
+        print(f"Epoch shape: {np.shape(epoch)}")
+        
+        # Convert epoch to numpy array or tensor if needed
+        epoch = np.array(epoch)  # Ensure it's a numpy array
+        
+        # Ensure that the epoch has the expected shape
+        if len(epoch.shape) == 1:  # Check if it's a 1D array
+            epoch = np.expand_dims(epoch, axis=0)  # Add a batch dimension if needed
+        
+        # Now use label_input_transform with the correct format
+        tokenized_epoch = tokenizer.label_input_transform(epoch, scale=None)
+        tokenized_data.append(tokenized_epoch)
+        
     print(f"Tokenized {len(tokenized_data)} epochs.")
     return tokenized_data
 
