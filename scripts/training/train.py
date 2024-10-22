@@ -500,10 +500,10 @@ def log_on_main(msg: str, logger: logging.Logger, log_level: int = logging.INFO)
 def load_data(arrow_file_path):
     """ Load the NCH dataset from the arrow file. """
     dataset = FileDataset(arrow_file_path, freq="s")
-    # Debug: print the first few entries to inspect their structure
-    for entry in itertools.islice(dataset, 5):  # Inspect first 5 entries
-        print(f"Entry structure: {entry}")
-        print(f"Sleep stages (target): {entry.get('target', None)}")
+    # # Debug: print the first few entries to inspect their structure
+    # for entry in itertools.islice(dataset, 5):  # Inspect first 5 entries
+    #     print(f"Entry structure: {entry}")
+    #     print(f"Sleep stages (target): {entry.get('target', None)}")
         
     return dataset
 
@@ -512,25 +512,23 @@ def tokenize_data(data, tokenizer):
     Tokenize the data using Chronos tokenizer.
     """
     print(f"Tokenizing {len(data)} epochs.")
-    tokenized_data = []
     
-    for epoch in data:
-        # Debugging: Print the shape of each epoch
-        print(f"Epoch shape: {np.shape(epoch)}")
-        
-        # Convert epoch to numpy array or tensor if needed
-        epoch = np.array(epoch)  # Ensure it's a numpy array
-        
-        # Ensure that the epoch has the expected shape
-        if len(epoch.shape) == 1:  # Check if it's a 1D array
-            epoch = np.expand_dims(epoch, axis=0)  # Add a batch dimension if needed
-        
-        # Now use label_input_transform with the correct format
-        tokenized_epoch = tokenizer.label_input_transform(epoch, scale=None)
-        tokenized_data.append(tokenized_epoch)
-        
-    print(f"Tokenized {len(tokenized_data)} epochs.")
-    return tokenized_data
+    # Ensure data is a numpy array
+    if isinstance(data, np.ndarray):
+        print(f"Data shape: {data.shape}")
+    else:
+        data = np.array(data)
+        print(f"Converted data to numpy array with shape: {data.shape}")
+    
+    # Pass the entire data array to label_input_transform instead of looping over individual epochs
+    try:
+        tokenized_data = tokenizer.label_input_transform(data, scale=None)
+        print(f"Tokenized data shape: {tokenized_data.shape}")
+        return tokenized_data
+    
+    except Exception as e:
+        print(f"Error during tokenization: {e}")
+        return []
 
 def save_tokenized_data(tokenized_data, output_dir):
     """ Save the tokenized data to the output directory. """
