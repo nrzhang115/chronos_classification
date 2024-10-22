@@ -532,7 +532,9 @@ def tokenize_data(data, tokenizer):
         return tokenized_data
     
     except Exception as e:
+        # Print full traceback for more details
         print(f"Error during tokenization: {e}")
+        traceback.print_exc()  # This will print the full error stack trace
         return []
 
 def save_tokenized_data(tokenized_data, output_dir):
