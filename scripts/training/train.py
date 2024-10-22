@@ -527,7 +527,7 @@ def split_into_chunks(data, context_length, prediction_length):
     chunk_size = context_length + prediction_length
     chunks = [data[i:i + chunk_size] for i in range(0, len(data), chunk_size)]
     
-    # Handle final chunk if it is shorter than the required length
+    # Handle final chunk if it is shorter than the required length to reduce the data losses
     if len(chunks[-1]) < chunk_size:
         chunks[-1] = pad_sequence(chunks[-1], context_length, prediction_length)
     
@@ -718,13 +718,7 @@ def main():
     output_file = os.path.join(output_dir, 'tokenized_data.pt')
     save_tokenized_data(tokenized_data, output_file)
     
-    # ---- Token-to-Sleep-Stage Mapping Verification ---- #
-    # Verify specific token IDs
-    for stage in range(6):  # Sleep stages 0 to 5
-        stage_array = np.array([stage], dtype=np.float32).reshape(1, -1)  # Create an array with the sleep stage
-        input_ids, attention_mask, scale = tokenizer.context_input_transform(torch.tensor(stage_array))
-        print(f"Sleep stage {stage} is tokenized as: {input_ids}, attention_mask: {attention_mask}, scale: {scale}")
-    # -------------------------------------------------- #
+
 
     # raw_training_config = deepcopy(locals())
     # output_dir = Path(output_dir)
