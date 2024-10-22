@@ -13,6 +13,7 @@ from copy import deepcopy
 from pathlib import Path
 from functools import partial
 from typing import List, Iterator, Optional, Dict
+import traceback
 
 import typer
 from typer_config import use_yaml_config
@@ -507,35 +508,60 @@ def load_data(arrow_file_path):
         
     return dataset
 
-def tokenize_data(data, tokenizer):
+def pad_sequence(sequence, context_length, prediction_length):
+    """
+    Pad a sequence if it's shorter than context_length + prediction_length.
+    Pads with zeros (or a value of your choice) to match the required length.
+    """
+    required_length = context_length + prediction_length
+    if len(sequence) < required_length:
+        padding_value = -1  # Distinct padding value
+        padded_sequence = np.pad(sequence, (0, required_length - len(sequence)), constant_values=padding_value)
+        return padded_sequence
+    return sequence
+
+def split_into_chunks(data, context_length, prediction_length):
+    """
+    Split data into chunks of context_length + prediction_length.
+    Each chunk will have length = context_length + prediction_length.
+    """
+    chunk_size = context_length + prediction_length
+    chunks = [data[i:i + chunk_size] for i in range(0, len(data), chunk_size)]
+    
+    # Handle final chunk if it is shorter than the required length
+    if len(chunks[-1]) < chunk_size:
+        chunks[-1] = pad_sequence(chunks[-1], context_length, prediction_length)
+    
+    return chunks
+
+def tokenize_data(data, tokenizer, context_length, prediction_length):
     """
     Tokenize the data using Chronos tokenizer.
     """
     print(f"Tokenizing {len(data)} epochs.")
     
-    # Ensure data is a numpy array
-    if isinstance(data, np.ndarray):
-        print(f"Data shape: {data.shape}")
+     # Pad short sequences and split long ones
+    if len(data) < context_length + prediction_length:
+        print(f"Padding short sequence with length {len(data)}")
+        data = pad_sequence(data, context_length, prediction_length)
+        chunks = [data]  # Treat padded sequence as a single chunk
     else:
-        data = np.array(data)
-        print(f"Converted data to numpy array with shape: {data.shape}")
-        
-    # Reshape the data to 2D if necessary (e.g., (batch_size, seq_length))
-    if len(data.shape) == 1:
-        data = np.expand_dims(data, axis=0)  # Reshape to (1, seq_length)
-        print(f"Reshaped data to: {data.shape}")
+        print(f"Splitting sequence with length {len(data)} into chunks")
+        chunks = split_into_chunks(data, context_length, prediction_length)
     
-    # Pass the entire data array to label_input_transform instead of looping over individual epochs
-    try:
-        tokenized_data = tokenizer.label_input_transform(data, scale=None)
-        print(f"Tokenized data shape: {tokenized_data.shape}")
-        return tokenized_data
+    print(f"Processing {len(chunks)} chunks")
     
-    except Exception as e:
-        # Print full traceback for more details
-        print(f"Error during tokenization: {e}")
-        traceback.print_exc()  # This will print the full error stack trace
-        return []
+    tokenized_data = []
+    for chunk in chunks:
+        chunk = np.expand_dims(chunk, axis=0)  # Add batch dimension
+        try:
+            tokenized_chunk = tokenizer.label_input_transform(chunk, scale=None)
+            tokenized_data.append(tokenized_chunk)
+        except Exception as e:
+            print(f"Error during tokenization: {e}")
+            traceback.print_exc()
+    print(f"Tokenized {len(tokenized_data)} chunks.")
+    return tokenized_data
 
 def save_tokenized_data(tokenized_data, output_dir):
     """ Save the tokenized data to the output directory. """
@@ -560,7 +586,7 @@ def main():
     # training_data_paths: str,
     # probability: Optional[str] = None,
     context_length = 512
-    prediction_length = 64
+    prediction_length = 1
     # min_past: int = 64,
     # max_steps: int = 200_000,
     # save_steps: int = 50_000,
