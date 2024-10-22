@@ -555,6 +555,8 @@ def tokenize_data(data, tokenizer, context_length, prediction_length):
     tokenized_data = []
     for chunk in chunks:
         chunk = np.expand_dims(chunk, axis=0)  # Add batch dimension (reshape)
+        # Convert the chunk from NumPy array to PyTorch tensor
+        chunk = torch.tensor(chunk, dtype=torch.float32)  # Convert to tensor
         
         try:
             # Split the chunk into context (past) and prediction (future)
