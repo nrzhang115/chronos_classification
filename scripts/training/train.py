@@ -579,22 +579,31 @@ def tokenize_data(data, tokenizer, context_length, prediction_length):
     print(f"Tokenized {len(tokenized_data)} chunks.")
     return tokenized_data
 
-def save_tokenized_data(tokenized_data, output_dir):
-    """ Save the tokenized data as PyTorch tensors for LLM pipeline use. """
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-    for idx, tokenized_entry in enumerate(tokenized_data):
-        output_file = os.path.join(output_dir, f'tokenized_entry_{idx}.pt')
-        
-        # Save as PyTorch tensors directly
-        torch.save({
-            "input_ids": tokenized_entry["input_ids"],
-            "attention_mask": tokenized_entry["attention_mask"],
-            "labels": tokenized_entry["labels"]
-        }, output_file)
-        
-        print(f"Tokenized data saved to {output_file}")
+def save_tokenized_data(tokenized_data, output_file):
+    """ Save all tokenized data into a single PyTorch .pt file. """
+    
+    # Prepare a dictionary to store all tokenized entries
+    all_tokenized_data = {
+        "input_ids": [],
+        "attention_mask": [],
+        "labels": []
+    }
 
+    # Append each tokenized entry's tensors into the lists
+    for tokenized_entry in tokenized_data:
+        all_tokenized_data["input_ids"].append(tokenized_entry["input_ids"])
+        all_tokenized_data["attention_mask"].append(tokenized_entry["attention_mask"])
+        all_tokenized_data["labels"].append(tokenized_entry["labels"])
+
+    # Convert lists of tensors into a single stacked tensor (batch format)
+    all_tokenized_data["input_ids"] = torch.stack(all_tokenized_data["input_ids"])
+    all_tokenized_data["attention_mask"] = torch.stack(all_tokenized_data["attention_mask"])
+    all_tokenized_data["labels"] = torch.stack(all_tokenized_data["labels"])
+
+    # Save the entire dataset as a single .pt file
+    torch.save(all_tokenized_data, output_file)
+    
+    print(f"All tokenized data saved to {output_file}")
 
 @app.command()
 @use_yaml_config(param_name="config")
@@ -706,7 +715,8 @@ def main():
     # Save tokenized data
     log_on_main(f"Saving tokenized data to {output_dir}", logger)
     # Save tokenized data
-    save_tokenized_data(tokenized_data, output_dir)
+    output_file = os.path.join(output_dir, 'tokenized_data.pt')
+    save_tokenized_data(tokenized_data, output_file)
 
     # raw_training_config = deepcopy(locals())
     # output_dir = Path(output_dir)
