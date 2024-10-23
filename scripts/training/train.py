@@ -10,6 +10,11 @@ from transformers import default_data_collator
 
 def compute_metrics(p):
     predictions, labels = p
+    
+    # Ensure predictions are a tensor
+    if isinstance(predictions, np.ndarray):
+        predictions = torch.tensor(predictions)
+    
     predictions = torch.argmax(predictions, dim=1)
     
     accuracy = accuracy_score(labels, predictions)
@@ -30,7 +35,7 @@ def compute_metrics(p):
         metrics[f"recall_stage_{i}"] = recall_per_class[i]
         metrics[f"f1_stage_{i}"] = f1_per_class[i]
     
-    return metrics
+    return metricsS
 
 def save_metrics_to_excel(metrics, output_file):
     print(f"Saving metrics to {output_file}...")
