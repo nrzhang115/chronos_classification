@@ -64,10 +64,9 @@ def main():
     print("Starting the training process...")
     
     # Load the tokenized data
-    input_ids, attention_masks, labels = load_tokenized_data(tokenized_data_path)
+    dataset = load_tokenized_data(tokenized_data_path)
     
-    # Create a Dataset and DataLoader for both training and validation sets
-    dataset = TensorDataset(input_ids, attention_masks, labels)
+    print("Data loaded successfully.")
     
     # Split into training and validation datasets (80% training, 20% validation)
     train_size = int(0.8 * len(dataset))
