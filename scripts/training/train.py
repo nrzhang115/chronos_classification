@@ -7,6 +7,7 @@ import evaluate
 import pandas as pd
 from sklearn.metrics import precision_recall_fscore_support, accuracy_score
 from transformers import default_data_collator
+import numpy as np
 
 def compute_metrics(p):
     predictions, labels = p
