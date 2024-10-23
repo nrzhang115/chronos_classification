@@ -82,7 +82,7 @@ def load_tokenized_data(file_path, context_length=512):
             for input_id, attention_mask, label in zip(input_ids, attention_masks, labels)]
     
 def main():
-    tokenized_data_path = "/srv/scratch/z5298768/chronos_classification/tokenization/tokenized_data.pt"
+    tokenized_data_path = "/srv/scratch/z5298768/chronos_classification/tokenization/tokenized_data_remapping.pt"
     output_dir = "/srv/scratch/z5298768/chronos_classification/bert_finetune_output"
     metrics_output_file = "/srv/scratch/z5298768/chronos_classification/bert_finetune_metrics.xlsx"
     
