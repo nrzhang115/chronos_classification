@@ -155,7 +155,7 @@ def tokenize_data(data, tokenizer, context_length, prediction_length):
             
             # Transform the context and labels using the appropriate Chronos tokenizer methods
             input_ids, attention_mask, scale = tokenizer.context_input_transform(context_chunk)
-            labels, labels_mask = tokenizer.label_input_transform(prediction_chunk, scale)
+            # labels, labels_mask = tokenizer.label_input_transform(prediction_chunk, scale)
             
             tokenized_data.append({
                 "input_ids": input_ids,
