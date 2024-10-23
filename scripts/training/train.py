@@ -54,7 +54,7 @@ def load_tokenized_data(file_path):
     print(f"Loading tokenized data from {file_path}...")
     data = torch.load(file_path)
     input_ids = data['input_ids']
-    attention_masks = data['attention_masks']
+    attention_masks = data['attention_mask']
     labels = data['labels']
     print("Data loaded successfully.")
     return input_ids, attention_masks, labels
