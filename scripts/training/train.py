@@ -63,6 +63,10 @@ def load_tokenized_data(file_path, context_length=512):
     
     # Debugging: Check the shape of labels after slicing
     print(f"Labels shape after selecting the first column: {labels.shape}")
+    # Double-check: Ensure labels are valid and match the number of classes
+    num_labels = 6  # Update this according to the number of sleep stages in your task
+    assert labels.max() < num_labels and labels.min() >= 0, f"Label values out of range: {labels}"
+
 
     # Print tensor shapes to verify
     print(f"input_ids shape: {input_ids.shape}")
