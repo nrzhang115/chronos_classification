@@ -53,7 +53,7 @@ def load_tokenized_data(file_path, context_length=512):
     
     input_ids = data['input_ids'][:, :context_length].squeeze()  # Ensure shape [batch_size, context_length]
     attention_masks = data['attention_mask'][:, :context_length].squeeze()  # Ensure shape [batch_size, context_length]
-    labels = data['labels'].squeeze()  # Ensure shape [batch_size]
+    labels = data['labels'][:, 0]  # Taking only the first column
 
     # Print tensor shapes to verify
     print(f"input_ids shape after squeeze: {input_ids.shape}")
