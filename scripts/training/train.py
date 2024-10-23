@@ -3,11 +3,12 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 from transformers import BertTokenizer, BertForSequenceClassification, Trainer, TrainingArguments
-# import evaluate
+import evaluate
 import pandas as pd
 from sklearn.metrics import precision_recall_fscore_support, accuracy_score
 
 def compute_metrics(p):
+    print("Computing metrics...")
     predictions, labels = p
     predictions = torch.argmax(predictions, dim=1)
     
@@ -31,16 +32,15 @@ def compute_metrics(p):
         metrics[f"recall_stage_{i}"] = recall_per_class[i]
         metrics[f"f1_stage_{i}"] = f1_per_class[i]
     
+    print(f"Metrics: {metrics}")
     return metrics
 
 def save_metrics_to_excel(metrics, output_file):
-    """
-    Save the evaluation metrics to an Excel file.
-    """
+    print(f"Saving metrics to {output_file}...")
     df = pd.DataFrame([metrics])  # Convert metrics dictionary to DataFrame
     df.to_excel(output_file, index=False)
     print(f"Metrics saved to {output_file}")
-# Define the BERT-based model for sleep stage classification
+
 class BertForSleepStageClassification(nn.Module):
     def __init__(self, num_labels=6):
         super(BertForSleepStageClassification, self).__init__()
@@ -50,18 +50,21 @@ class BertForSleepStageClassification(nn.Module):
         outputs = self.bert(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
         return outputs
 
-# Function to load your tokenized data
 def load_tokenized_data(file_path):
+    print(f"Loading tokenized data from {file_path}...")
     data = torch.load(file_path)
-    input_ids = data['input_ids']   # Tokenized sequences
-    attention_masks = data['attention_masks']  # Attention masks
-    labels = data['labels']  # Sleep stage labels
+    input_ids = data['input_ids']
+    attention_masks = data['attention_masks']
+    labels = data['labels']
+    print("Data loaded successfully.")
     return input_ids, attention_masks, labels
 
 def main():
     tokenized_data_path = "/srv/scratch/z5298768/chronos_classification/tokenization/tokenized_data.pt"
     output_dir = "/srv/scratch/z5298768/chronos_classification/bert_finetune_output"
     metrics_output_file = "/srv/scratch/z5298768/chronos_classification/bert_finetune_metrics.xlsx"
+    
+    print("Starting the training process...")
     
     # Load the tokenized data
     input_ids, attention_masks, labels = load_tokenized_data(tokenized_data_path)
@@ -74,12 +77,15 @@ def main():
     val_size = len(dataset) - train_size
     train_dataset, val_dataset = torch.utils.data.random_split(dataset, [train_size, val_size])
 
+    print("Data successfully split into training and validation sets.")
+    
     train_dataloader = DataLoader(train_dataset, batch_size=32, shuffle=True)
     val_dataloader = DataLoader(val_dataset, batch_size=32)
 
     # Initialize the BERT model for sleep stage classification
     model = BertForSleepStageClassification(num_labels=6)  # Sleep stages 0-5
-
+    print("Model initialized successfully.")
+    
     # Define the training arguments
     training_args = TrainingArguments(
         output_dir=output_dir,
@@ -96,6 +102,8 @@ def main():
         metric_for_best_model="f1_macro",  # Specify F1 score as metric for best model
     )
 
+    print("Training arguments set up successfully.")
+    
     # Set up Trainer
     trainer = Trainer(
         model=model,
@@ -106,11 +114,18 @@ def main():
     )
 
     # Train the model
+    print("Starting model training...")
     trainer.train()
 
     # Evaluate and save metrics after training
+    print("Evaluating the model...")
     metrics = trainer.evaluate()
     save_metrics_to_excel(metrics, metrics_output_file)
 
     # Save the final model
+    print("Saving the model...")
     model.save_pretrained(output_dir)
+    print("Model saved successfully.")
+
+if __name__ == "__main__":
+    main()
