@@ -48,16 +48,15 @@ class BertForSleepStageClassification(nn.Module):
         return outputs
 
 # Function to load your tokenized data
-def load_tokenized_data(file_path):
+def load_tokenized_data(file_path, context_length=512):
     data = torch.load(file_path)
-    input_ids = data['input_ids'].squeeze()  # Ensure correct shape [batch_size, seq_length]
-    attention_masks = data['attention_mask'].squeeze()  # Ensure correct shape [batch_size, seq_length]
-    labels = data['labels'].squeeze()  # Ensure correct shape [batch_size]
-
+    input_ids = data['input_ids'][:, :context_length]  # Only use the context length for BERT
+    attention_masks = data['attention_mask'][:, :context_length]  # Truncate attention masks accordingly
+    labels = data['labels']  # Keep labels intact
+    
     # Return list of dictionaries
     return [{'input_ids': input_id, 'attention_mask': attention_mask, 'labels': label}
             for input_id, attention_mask, label in zip(input_ids, attention_masks, labels)]
-
 def main():
     tokenized_data_path = "/srv/scratch/z5298768/chronos_classification/tokenization/tokenized_data.pt"
     output_dir = "/srv/scratch/z5298768/chronos_classification/bert_finetune_output"
