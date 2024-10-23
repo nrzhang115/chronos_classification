@@ -48,19 +48,21 @@ class BertForSleepStageClassification(nn.Module):
         return outputs
 
 # Function to load your tokenized data
-def load_tokenized_data(file_path, context_length=511):
+def load_tokenized_data(file_path, context_length=512):
     data = torch.load(file_path)
+
+    # Ensure input_ids and attention_masks are 2D and truncate to context_length
+    input_ids = data['input_ids'].view(data['input_ids'].size(0), -1)[:, :context_length]  # Reshape to [batch_size, seq_length] and truncate
+    attention_masks = data['attention_mask'].view(data['attention_mask'].size(0), -1)[:, :context_length]  # Same as above
     
-    input_ids = data['input_ids'][:, :context_length].squeeze()  # Ensure shape [batch_size, context_length]
-    attention_masks = data['attention_mask'][:, :context_length].squeeze()  # Ensure shape [batch_size, context_length]
-    labels = data['labels'][:, 0]  # Taking only the first column
+    # Assuming labels should be 1D, taking only the first column
+    labels = data['labels'][:, 0] if data['labels'].dim() > 1 else data['labels']  # Ensure labels are [batch_size]
 
     # Print tensor shapes to verify
-    print(f"input_ids shape after squeeze: {input_ids.shape}")
-    print(f"attention_mask shape after squeeze: {attention_masks.shape}")
-    print(f"labels shape after squeeze: {labels.shape}")
+    print(f"input_ids shape: {input_ids.shape}")
+    print(f"attention_mask shape: {attention_masks.shape}")
+    print(f"labels shape: {labels.shape}")
     
-    # Return list of dictionaries
     return [{'input_ids': input_id, 'attention_mask': attention_mask, 'labels': label}
             for input_id, attention_mask, label in zip(input_ids, attention_masks, labels)]
     
