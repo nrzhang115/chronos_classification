@@ -104,6 +104,21 @@ def split_into_chunks(data, context_length, prediction_length):
     
     return chunks
 
+def map_sleep_stage_to_label(sleep_stage):
+    # Map the sleep stages to corresponding labels
+    if sleep_stage == 0:
+        return 0  # REM
+    elif sleep_stage == 1:
+        return 1  # Wake
+    elif sleep_stage == 2:
+        return 2  # N1
+    elif sleep_stage == 3:
+        return 3  # N2
+    elif sleep_stage == 4:
+        return 4  # N3
+    else:
+        return 5  # Unknown stage
+
 def tokenize_data(data, tokenizer, context_length, prediction_length):
     """
     Tokenize the data using Chronos tokenizer for sleep stage classification.
@@ -133,6 +148,11 @@ def tokenize_data(data, tokenizer, context_length, prediction_length):
             context_chunk = chunk[:, :-prediction_length]
             prediction_chunk = chunk[:, -prediction_length:]  # Last part for prediction
             
+            # Map prediction_chunk values to label IDs using the updated function
+            mapped_labels = [map_sleep_stage_to_label(stage) for stage in prediction_chunk.flatten().numpy()]
+            # Reshape back to the correct tensor shape, if necessary
+            labels_tensor = torch.tensor(mapped_labels).view(1, -1)  # Adjust dimensions as necessary
+            
             # Transform the context and labels using the appropriate Chronos tokenizer methods
             input_ids, attention_mask, scale = tokenizer.context_input_transform(context_chunk)
             labels, labels_mask = tokenizer.label_input_transform(prediction_chunk, scale)
@@ -140,7 +160,7 @@ def tokenize_data(data, tokenizer, context_length, prediction_length):
             tokenized_data.append({
                 "input_ids": input_ids,
                 "attention_mask": attention_mask,
-                "labels": labels
+                "labels": labels_tensor
             })
             
         except Exception as e:
@@ -264,7 +284,7 @@ def main():
     # Save tokenized data
     log_on_main(f"Saving tokenized data to {output_dir}", logger)
     # Save tokenized data
-    output_file = os.path.join(output_dir, 'tokenized_data.pt')
+    output_file = os.path.join(output_dir, 'tokenized_data_remapping.pt')
     save_tokenized_data(tokenized_data, output_file)
     
 
