@@ -8,7 +8,6 @@ import pandas as pd
 from sklearn.metrics import precision_recall_fscore_support, accuracy_score
 
 def compute_metrics(p):
-    print("Computing metrics...")
     predictions, labels = p
     predictions = torch.argmax(predictions, dim=1)
     
@@ -18,7 +17,6 @@ def compute_metrics(p):
     # For each class (sleep stages), calculate precision, recall, and F1 score
     precision_per_class, recall_per_class, f1_per_class, _ = precision_recall_fscore_support(labels, predictions, average=None)
     
-    # Create a dictionary to log all metrics
     metrics = {
         "accuracy": accuracy,
         "precision_macro": precision,
@@ -26,13 +24,11 @@ def compute_metrics(p):
         "f1_macro": f1,
     }
     
-    # Add metrics for each class (sleep stages 0-5)
-    for i in range(6):  # Assuming sleep stages are 0-5
+    for i in range(6):
         metrics[f"precision_stage_{i}"] = precision_per_class[i]
         metrics[f"recall_stage_{i}"] = recall_per_class[i]
         metrics[f"f1_stage_{i}"] = f1_per_class[i]
     
-    print(f"Metrics: {metrics}")
     return metrics
 
 def save_metrics_to_excel(metrics, output_file):
@@ -50,14 +46,15 @@ class BertForSleepStageClassification(nn.Module):
         outputs = self.bert(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
         return outputs
 
+# Function to load your tokenized data
 def load_tokenized_data(file_path):
-    print(f"Loading tokenized data from {file_path}...")
     data = torch.load(file_path)
-    input_ids = data['input_ids']
-    attention_masks = data['attention_mask']
-    labels = data['labels']
-    print("Data loaded successfully.")
-    return input_ids, attention_masks, labels
+    input_ids = data['input_ids']   # Tokenized sequences
+    attention_masks = data['attention_mask']  # Attention masks
+    labels = data['labels']  # Sleep stage labels
+    
+    # Return as a TensorDataset or a dictionary for each batch
+    return TensorDataset(input_ids, attention_masks, labels)
 
 def main():
     tokenized_data_path = "/srv/scratch/z5298768/chronos_classification/tokenization/tokenized_data.pt"
@@ -79,8 +76,6 @@ def main():
 
     print("Data successfully split into training and validation sets.")
     
-    train_dataloader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-    val_dataloader = DataLoader(val_dataset, batch_size=32)
 
     # Initialize the BERT model for sleep stage classification
     model = BertForSleepStageClassification(num_labels=6)  # Sleep stages 0-5
