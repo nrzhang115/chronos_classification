@@ -148,10 +148,10 @@ def main():
     metrics = trainer.evaluate()
     save_metrics_to_excel(metrics, metrics_output_file)
 
-    # Save the final model
-    print("Saving the model...")
-    model.save_pretrained(output_dir)
-    print("Model saved successfully.")
+    # # Save the final model
+    # print("Saving the model...")
+    # model.save_pretrained(output_dir)
+    # print("Model saved successfully.")
 
 if __name__ == "__main__":
     main()
