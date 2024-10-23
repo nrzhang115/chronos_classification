@@ -55,8 +55,17 @@ def load_tokenized_data(file_path, context_length=512):
     input_ids = data['input_ids'].view(data['input_ids'].size(0), -1)[:, :context_length]  # Reshape to [batch_size, seq_length] and truncate
     attention_masks = data['attention_mask'].view(data['attention_mask'].size(0), -1)[:, :context_length]  # Same as above
     
-    # Assuming labels should be 1D, taking only the first column
-    labels = data['labels'][:, 0] if data['labels'].dim() > 1 else data['labels']  # Ensure labels are [batch_size]
+    # Debugging: Check the shape of labels before slicing
+    print(f"Original labels shape: {data['labels'].shape}")
+
+    # Ensure labels are 1D; explicitly use .view() to reshape if needed
+    labels = data['labels'][:, 0]  # Assuming the first column is the correct one
+    
+    # Debugging: Check the shape of labels after slicing
+    print(f"Labels shape after slicing: {labels.shape}")
+
+    # If still problematic, apply .view() or .squeeze() to enforce 1D
+    labels = labels.view(-1)  # Reshape to [batch_size]
 
     # Print tensor shapes to verify
     print(f"input_ids shape: {input_ids.shape}")
