@@ -50,9 +50,9 @@ class BertForSleepStageClassification(nn.Module):
 # Function to load your tokenized data
 def load_tokenized_data(file_path):
     data = torch.load(file_path)
-    input_ids = data['input_ids']
-    attention_masks = data['attention_mask']
-    labels = data['labels']
+    input_ids = data['input_ids'].squeeze()  # Ensure correct shape [batch_size, seq_length]
+    attention_masks = data['attention_mask'].squeeze()  # Ensure correct shape [batch_size, seq_length]
+    labels = data['labels'].squeeze()  # Ensure correct shape [batch_size]
 
     # Return list of dictionaries
     return [{'input_ids': input_id, 'attention_mask': attention_mask, 'labels': label}
