@@ -51,16 +51,18 @@ class BertForSleepStageClassification(nn.Module):
 def load_tokenized_data(file_path, context_length=512):
     data = torch.load(file_path)
     
-    input_ids = data['input_ids'][:, :context_length].squeeze()  # Ensure shape [batch_size, context_length]
-    attention_masks = data['attention_mask'][:, :context_length].squeeze()  # Ensure shape [batch_size, context_length]
+    # Truncate input_ids and attention_mask to context_length (512)
+    input_ids = data['input_ids'][:, :context_length]  # Shape [batch_size, context_length]
+    attention_masks = data['attention_mask'][:, :context_length]  # Shape [batch_size, context_length]
+
+    # Assuming that the first column in labels is the correct one, reshape labels to [batch_size]
     labels = data['labels'][:, 0]  # Taking only the first column
 
     # Print tensor shapes to verify
-    print(f"input_ids shape after squeeze: {input_ids.shape}")
-    print(f"attention_mask shape after squeeze: {attention_masks.shape}")
-    print(f"labels shape after squeeze: {labels.shape}")
+    print(f"input_ids shape: {input_ids.shape}")
+    print(f"attention_mask shape: {attention_masks.shape}")
+    print(f"labels shape: {labels.shape}")
     
-    # Return list of dictionaries
     return [{'input_ids': input_id, 'attention_mask': attention_mask, 'labels': label}
             for input_id, attention_mask, label in zip(input_ids, attention_masks, labels)]
     
