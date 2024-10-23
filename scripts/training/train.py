@@ -35,7 +35,7 @@ def compute_metrics(p):
         metrics[f"recall_stage_{i}"] = recall_per_class[i]
         metrics[f"f1_stage_{i}"] = f1_per_class[i]
     
-    return metricsS
+    return metrics
 
 def save_metrics_to_excel(metrics, output_file):
     print(f"Saving metrics to {output_file}...")
