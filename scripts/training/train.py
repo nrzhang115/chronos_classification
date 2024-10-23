@@ -61,11 +61,16 @@ def load_tokenized_data(file_path, context_length=512):
     # Select only the first column or dimension from labels to make it 1D
     labels = data['labels'][:, 0, 0]  # Assuming you need the first column
     
-    # Debugging: Check the shape of labels after slicing
-    print(f"Labels shape after selecting the first column: {labels.shape}")
-    # Double-check: Ensure labels are valid and match the number of classes
-    num_labels = 6  # Update this according to the number of sleep stages in your task
-    assert labels.max() < num_labels and labels.min() >= 0, f"Label values out of range: {labels}"
+    # Replace padding label (-1) with ignore_index (-100)
+    labels[labels == -1] = -100  # Replace padding with ignore_index
+    
+    # Check the max and min values in labels for verification
+    print(f"Max label value: {labels.max()}")
+    print(f"Min label value: {labels.min()}")
+
+    # Ensure labels are valid (excluding padding label)
+    num_labels = 6  # Update this according to the number of sleep stages
+    assert labels.max() < num_labels and labels.min() >= -100, "Label values are out of range (excluding ignore_index)."
 
 
     # Print tensor shapes to verify
