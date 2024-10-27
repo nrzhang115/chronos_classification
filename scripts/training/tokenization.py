@@ -176,7 +176,7 @@ def tokenize_data(data, tokenizer, context_length, prediction_length):
             traceback.print_exc()
     
     print(f"Tokenized {len(tokenized_data)} chunks.")
-    return tokenized_data if tokenized_data else None  # Return None if no valid chunks
+    return tokenized_data 
 
 def save_tokenized_data(tokenized_data, output_file):
     """ Save all tokenized data into a single PyTorch .pt file. """
