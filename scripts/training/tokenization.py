@@ -152,7 +152,7 @@ def tokenize_data(data, tokenizer, context_length, prediction_length):
             
             # Map prediction_chunk values to label IDs using the updated function
             mapped_labels = [map_sleep_stage_to_label(stage) for stage in prediction_chunk.flatten().numpy()]
-            mapped_labels = [label for label in mapped_labels if label is not None]  # Filter out None
+            mapped_labels = [label for label in mapped_labels if label is not None] # Filter out None
             if not mapped_labels:
                 print("No valid labels in this chunk; skipping.")
                 continue  # Skip this chunk if no valid labels remain
@@ -287,7 +287,8 @@ def main():
         
         # Tokenize the epochs directly
         tokenized_sleep_stages = tokenize_data(sleep_stages, tokenizer, context_length, prediction_length)
-        tokenized_data.extend(tokenized_sleep_stages)
+        if tokenized_sleep_stages:
+            tokenized_data.extend(tokenized_sleep_stages)
         
     # Log tokenization result
     log_on_main(f"Tokenization completed with {len(tokenized_data)} tokenized entries", logger)
