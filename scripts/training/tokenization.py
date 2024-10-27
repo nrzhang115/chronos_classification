@@ -119,7 +119,7 @@ def map_sleep_stage_to_label(sleep_stage):
         3: 3,  # N2
         4: 4   # N3
     }
-    return stage_mapping.get(sleep_stage)
+    return stage_mapping.get(sleep_stage, -1)  # -1 will be used as padding
 
 def tokenize_data(data, tokenizer, context_length, prediction_length):
     """
@@ -161,6 +161,9 @@ def tokenize_data(data, tokenizer, context_length, prediction_length):
             # Reshape back to the correct tensor shape, if necessary
             labels_tensor = torch.tensor(mapped_labels).view(1, -1)  # Adjust dimensions as necessary
             
+            # Apply ignore index for training
+            labels_tensor[labels_tensor == -1] = -100  # Set padding (-1) to ignore index (-100)
+            
             # Transform the context and labels using the appropriate Chronos tokenizer methods
             input_ids, attention_mask, scale = tokenizer.context_input_transform(context_chunk)
             # labels, labels_mask = tokenizer.label_input_transform(prediction_chunk, scale)
@@ -190,12 +193,17 @@ def save_tokenized_data(tokenized_data, output_file):
         "attention_mask": [],
         "labels": []
     }
+    max_label_length = max(entry["labels"].size(1) for entry in tokenized_data)  # Find maximum label length
 
     # Append each tokenized entry's tensors into the lists
     for tokenized_entry in tokenized_data:
         all_tokenized_data["input_ids"].append(tokenized_entry["input_ids"])
         all_tokenized_data["attention_mask"].append(tokenized_entry["attention_mask"])
-        all_tokenized_data["labels"].append(tokenized_entry["labels"])
+        
+        # Pad labels to maximum length with -100 for ignore index
+        padded_labels = torch.full((1, max_label_length), -100, dtype=torch.long)
+        padded_labels[0, :tokenized_entry["labels"].size(1)] = tokenized_entry["labels"]
+        all_tokenized_data["labels"].append(padded_labels)
 
     # Convert lists of tensors into a single stacked tensor (batch format)
     all_tokenized_data["input_ids"] = torch.stack(all_tokenized_data["input_ids"])
