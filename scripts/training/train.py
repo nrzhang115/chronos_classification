@@ -56,6 +56,9 @@ class BertForSleepStageClassification(nn.Module):
 # Function to load your tokenized data
 def load_tokenized_data(file_path, bert_max_length=512):
     data = torch.load(file_path)
+    # Check the shape of input_ids
+    print(f"Shape of loaded input_ids: {data['input_ids'].shape}")
+    print(f"Shape of loaded attention_mask: {data['attention_mask'].shape}")
 
     # # Ensure input_ids and attention_masks are 2D and truncate to bert_max_length
     # input_ids = data['input_ids'].view(data['input_ids'].size(0), -1)[:, :bert_max_length]  # Reshape to [batch_size, seq_length] and truncate
