@@ -63,17 +63,17 @@ def load_tokenized_data(file_path, bert_max_length=512):
     # Downsample from 3000 tokens to bert_max_length (512 tokens)
     downsample_factor = data['input_ids'].size(1) // bert_max_length  # This should be close to 6 for 3000 tokens
     if downsample_factor > 1:
-        # Reshape and average over each segment to downsample
+        # Downsample by averaging over each segment
         input_ids = data['input_ids'].reshape(data['input_ids'].size(0), bert_max_length, downsample_factor).mean(dim=2)
         attention_masks = data['attention_mask'].reshape(data['attention_mask'].size(0), bert_max_length, downsample_factor).mean(dim=2)
-        
+
         # Convert averaged values to integer tokens
-        input_ids = input_ids.long()
-        attention_masks = (attention_masks > 0).long()  # Convert back to binary attention mask
+        input_ids = input_ids.long()  # Final shape should be [batch_size, bert_max_length]
+        attention_masks = (attention_masks > 0).long()  # Convert to binary
     else:
-        # If already within limit, just truncate
-        input_ids = data['input_ids'][:, :bert_max_length]
-        attention_masks = data['attention_mask'][:, :bert_max_length]
+        # Direct truncation if already within bert_max_length
+        input_ids = data['input_ids'][:, :bert_max_length].reshape(data['input_ids'].size(0), bert_max_length)
+        attention_masks = data['attention_mask'][:, :bert_max_length].reshape(data['attention_mask'].size(0), bert_max_length)
         
     # Debugging: Check the shape of labels before processing
     print(f"Original labels shape: {data['labels'].shape}")
