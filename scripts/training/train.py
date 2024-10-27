@@ -89,7 +89,7 @@ def load_tokenized_data(file_path, bert_max_length=512):
     print(f"Min label value: {labels.min()}")
 
     # Ensure labels are valid (excluding padding label)
-    num_labels = 6  # Update this according to the number of sleep stages
+    num_labels = 5  # Update this according to the number of sleep stages
     assert labels.max() < num_labels and labels.min() >= -100, "Label values are out of range (excluding ignore_index)."
 
 
@@ -122,7 +122,7 @@ def main():
     
 
     # Initialize the BERT model for sleep stage classification
-    model = BertForSleepStageClassification(num_labels=6)  # Sleep stages 0-5
+    model = BertForSleepStageClassification(num_labels=5)  # Sleep stages 0-4
     print("Model initialized successfully.")
     
     # Define the training arguments
