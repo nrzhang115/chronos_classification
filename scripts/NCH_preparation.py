@@ -30,10 +30,12 @@ def extract_sleep_stages(ann_file):
     df = pd.read_csv(ann_file, sep="\t")
 
     # Filter sleep stage rows
-    sleep_stages = df[df['description'].str.startswith("Sleep stage")]
+    # Filter only known sleep stages
+    valid_stages = set(ann2label.keys())
+    sleep_stages = df[df['description'].isin(valid_stages)]
 
-    # Prepare continuous time series without pre-defining epoch lengths
-    labels = [(row['onset'], ann2label.get(row['description'], 5)) for _, row in sleep_stages.iterrows()]
+    # Convert to labeled format, directly using known mappings
+    labels = [(row['onset'], ann2label[row['description']]) for _, row in sleep_stages.iterrows()]
 
     return labels
 
