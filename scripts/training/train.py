@@ -45,7 +45,7 @@ def save_metrics_to_excel(metrics, output_file):
     print(f"Metrics saved to {output_file}")
 
 class BertForSleepStageClassification(nn.Module):
-    def __init__(self, num_labels=6):
+    def __init__(self, num_labels=5):
         super(BertForSleepStageClassification, self).__init__()
         self.bert = BertForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=num_labels)
 
@@ -54,13 +54,27 @@ class BertForSleepStageClassification(nn.Module):
         return outputs
 
 # Function to load your tokenized data
-def load_tokenized_data(file_path, context_length=512):
+def load_tokenized_data(file_path, bert_max_length=512):
     data = torch.load(file_path)
 
-    # Ensure input_ids and attention_masks are 2D and truncate to context_length
-    input_ids = data['input_ids'].view(data['input_ids'].size(0), -1)[:, :context_length]  # Reshape to [batch_size, seq_length] and truncate
-    attention_masks = data['attention_mask'].view(data['attention_mask'].size(0), -1)[:, :context_length]  # Same as above
-    
+    # # Ensure input_ids and attention_masks are 2D and truncate to bert_max_length
+    # input_ids = data['input_ids'].view(data['input_ids'].size(0), -1)[:, :bert_max_length]  # Reshape to [batch_size, seq_length] and truncate
+    # attention_masks = data['attention_mask'].view(data['attention_mask'].size(0), -1)[:, :bert_max_length]  # Same as above
+    # Downsample from 3000 tokens to bert_max_length (512 tokens)
+    downsample_factor = data['input_ids'].size(1) // bert_max_length  # This should be close to 6 for 3000 tokens
+    if downsample_factor > 1:
+        # Reshape and average over each segment to downsample
+        input_ids = data['input_ids'].reshape(data['input_ids'].size(0), bert_max_length, downsample_factor).mean(dim=2)
+        attention_masks = data['attention_mask'].reshape(data['attention_mask'].size(0), bert_max_length, downsample_factor).mean(dim=2)
+        
+        # Convert averaged values to integer tokens
+        input_ids = input_ids.long()
+        attention_masks = (attention_masks > 0).long()  # Convert back to binary attention mask
+    else:
+        # If already within limit, just truncate
+        input_ids = data['input_ids'][:, :bert_max_length]
+        attention_masks = data['attention_mask'][:, :bert_max_length]
+        
     # Debugging: Check the shape of labels before processing
     print(f"Original labels shape: {data['labels'].shape}")
 
@@ -119,7 +133,7 @@ def main():
         save_steps=1000,
         per_device_train_batch_size=32,
         per_device_eval_batch_size=32, # Batch size for evaluation
-        num_train_epochs=3,
+        num_train_epochs=3,            # Train the data three times
         logging_dir=f"{output_dir}/logs",
         logging_steps=500,
         save_total_limit=2,            # Keeps only 2 last checkpoints

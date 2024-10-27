@@ -116,8 +116,6 @@ def map_sleep_stage_to_label(sleep_stage):
         return 3  # N2
     elif sleep_stage == 4:
         return 4  # N3
-    else:
-        return 5  # Unknown stage
 
 def tokenize_data(data, tokenizer, context_length, prediction_length):
     """
@@ -204,8 +202,8 @@ def main():
     
     # training_data_paths: str,
     # probability: Optional[str] = None,
-    context_length = 512
-    prediction_length = 1
+    context_length = 3000
+    prediction_length = 0
     # min_past: int = 64,
     # max_steps: int = 200_000,
     # save_steps: int = 50_000,
@@ -219,7 +217,7 @@ def main():
     model_type = "seq2seq"
     tokenizer_class = "MeanScaleUniformBins"
     tokenizer_kwargs = {'low_limit': -15.0, 'high_limit': 15.0}
-    n_tokens = 4096
+    n_tokens = 3000 # Number of tokens for each 30s epoch 
     n_special_tokens = 2
     pad_token_id = 0
     eos_token_id = 1

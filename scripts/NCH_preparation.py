@@ -23,7 +23,6 @@ ann2label = {
     "Sleep stage N2": 2,  # N2
     "Sleep stage N3": 3,  # N3
     "Sleep stage R": 4,   # REM
-    "Sleep stage ?": 5,   # Unknown
 }
 
 def extract_sleep_stages(ann_file):
