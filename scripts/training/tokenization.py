@@ -106,16 +106,20 @@ def split_into_chunks(data, context_length, prediction_length):
 
 def map_sleep_stage_to_label(sleep_stage):
     # Map the sleep stages to corresponding labels
-    if sleep_stage == 0:
-        return 0  # REM
-    elif sleep_stage == 1:
-        return 1  # Wake
-    elif sleep_stage == 2:
-        return 2  # N1
-    elif sleep_stage == 3:
-        return 3  # N2
-    elif sleep_stage == 4:
-        return 4  # N3
+    valid_labels = {0, 1, 2, 3, 4}
+    if sleep_stage not in valid_labels:
+        print(f"Warning: Encountered unexpected sleep stage '{sleep_stage}', mapping it to None.")
+        return None  # Return None for unexpected values
+
+    # Map known sleep stages to corresponding labels
+    stage_mapping = {
+        0: 0,  # REM
+        1: 1,  # Wake
+        2: 2,  # N1
+        3: 3,  # N2
+        4: 4   # N3
+    }
+    return stage_mapping.get(sleep_stage)
 
 def tokenize_data(data, tokenizer, context_length, prediction_length):
     """
@@ -148,6 +152,12 @@ def tokenize_data(data, tokenizer, context_length, prediction_length):
             
             # Map prediction_chunk values to label IDs using the updated function
             mapped_labels = [map_sleep_stage_to_label(stage) for stage in prediction_chunk.flatten().numpy()]
+            mapped_labels = [label for label in mapped_labels if label is not None]  # Filter out None
+            if not mapped_labels:
+                print("No valid labels in this chunk; skipping.")
+                continue  # Skip this chunk if no valid labels remain
+
+            
             # Reshape back to the correct tensor shape, if necessary
             labels_tensor = torch.tensor(mapped_labels).view(1, -1)  # Adjust dimensions as necessary
             
@@ -166,10 +176,13 @@ def tokenize_data(data, tokenizer, context_length, prediction_length):
             traceback.print_exc()
     
     print(f"Tokenized {len(tokenized_data)} chunks.")
-    return tokenized_data
+    return tokenized_data if tokenized_data else None  # Return None if no valid chunks
 
 def save_tokenized_data(tokenized_data, output_file):
     """ Save all tokenized data into a single PyTorch .pt file. """
+    if not tokenized_data:
+        print("No tokenized data to save.")
+        return
     
     # Prepare a dictionary to store all tokenized entries
     all_tokenized_data = {
