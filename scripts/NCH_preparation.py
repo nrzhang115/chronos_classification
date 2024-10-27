@@ -97,18 +97,23 @@ def process_nch_data(psg_fnames, ann_fnames, select_ch, chunk_size=10):
             # Extract start time
             start_time_sec = extract_start_time(ann_fname)
             start_time = np.datetime64(int(start_time_sec), 's')
+            
+            # Extract EEG signal and split into 30-second epochs
+            eeg_signal = raw.get_data()[0]  # single-channel data
+            epochs = split_into_epochs(eeg_signal, TARGET_SAMPLING_RATE)
 
-            # Extract sleep stage labels
+            # Extract sleep stage labels and segment them
             labels = extract_sleep_stages(ann_fname)
+            segmented_labels = [label[1] for label in labels[:len(epochs)]]  # Align labels with epochs
 
-            if len(labels) == 0:
+            if len(segmented_labels) == 0:
                 print(f"Skipping {psg_fname} due to lack of valid data.")
                 continue
 
             # Prepare the time series entry
             entry = {
                 "start": start_time,
-                "target": [label[1] for label in labels]
+                "target": segmented_labels
             }
             data_list.append(entry)
 
