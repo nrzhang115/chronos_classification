@@ -83,7 +83,7 @@ def pad_sequence(sequence, context_length, prediction_length):
     Pad a sequence if it's shorter than context_length + prediction_length.
     Pads with zeros (or a value of your choice) to match the required length.
     """
-    required_length = context_length + prediction_length
+    required_length = context_length
     if len(sequence) < required_length:
         padding_value = -1  # Distinct padding value
         padded_sequence = np.pad(sequence, (0, required_length - len(sequence)), constant_values=padding_value)
@@ -108,7 +108,7 @@ def map_sleep_stage_to_label(sleep_stage):
     # Map the sleep stages to corresponding labels
     valid_labels = {0, 1, 2, 3, 4}
     if sleep_stage not in valid_labels:
-        print(f"Warning: Encountered unexpected sleep stage '{sleep_stage}', mapping it to None.")
+        # print(f"Warning: Encountered unexpected sleep stage '{sleep_stage}', mapping it to None.")
         return None  # Return None for unexpected values
 
     # Map known sleep stages to corresponding labels
