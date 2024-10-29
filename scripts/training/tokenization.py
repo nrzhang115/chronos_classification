@@ -208,7 +208,7 @@ def main():
     # training_data_paths: str,
     # probability: Optional[str] = None,
     context_length = 3000
-    # prediction_length = 0
+    prediction_length = 0
     # min_past: int = 64,
     # max_steps: int = 200_000,
     # save_steps: int = 50_000,
@@ -253,7 +253,7 @@ def main():
         eos_token_id=eos_token_id,
         use_eos_token=True,
         context_length=context_length,  # Required for ChronosConfig
-        # prediction_length=prediction_length,  # Required for ChronosConfig
+        prediction_length=prediction_length,  # Required for ChronosConfig
         model_type=model_type,  # Required for ChronosConfig
         num_samples=num_samples,  # Required for ChronosConfig
         temperature=temperature,  # Required for ChronosConfig
