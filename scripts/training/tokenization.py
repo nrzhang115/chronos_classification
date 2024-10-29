@@ -166,7 +166,7 @@ def tokenize_data(data, tokenizer, context_length):
 
 def save_tokenized_data(tokenized_data, output_file):
     """ Save all tokenized data into a single PyTorch .pt file. """
-    tokenized_data = [entry for entry in tokenized_data if entry is not None]
+    tokenized_data = [entry for entry in tokenized_data if isinstance(entry, dict)]
     if not tokenized_data:
         print("No tokenized data to save.")
         return
@@ -198,6 +198,7 @@ def save_tokenized_data(tokenized_data, output_file):
     torch.save(all_tokenized_data, output_file)
     
     print(f"All tokenized data saved to {output_file}")
+
 
 @app.command()
 @use_yaml_config(param_name="config")
@@ -284,7 +285,8 @@ def main():
         
     # Log tokenization result
     log_on_main(f"Tokenization completed with {len(tokenized_data)} tokenized entries", logger)
-
+    # Debug
+    log_on_main(f"First 5 tokenized entries: {tokenized_data[:5]}", logger)
     # Save tokenized data
     log_on_main(f"Saving tokenized data to {output_dir}", logger)
     # Save tokenized data
