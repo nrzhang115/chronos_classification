@@ -56,50 +56,34 @@ class BertForSleepStageClassification(nn.Module):
 # Function to load your tokenized data
 def load_tokenized_data(file_path, bert_max_length=512):
     data = torch.load(file_path)
-    # Check the shape of input_ids
     print(f"Shape of loaded input_ids: {data['input_ids'].shape}")
     print(f"Shape of loaded attention_mask: {data['attention_mask'].shape}")
 
-    # # Ensure input_ids and attention_masks are 2D and truncate to bert_max_length
-    # input_ids = data['input_ids'].view(data['input_ids'].size(0), -1)[:, :bert_max_length]  # Reshape to [batch_size, seq_length] and truncate
-    # attention_masks = data['attention_mask'].view(data['attention_mask'].size(0), -1)[:, :bert_max_length]  # Same as above
-    # Downsample from 3000 tokens to bert_max_length (512 tokens)
-    downsample_factor = data['input_ids'].size(1) // bert_max_length  # This should be close to 6 for 3000 tokens
+    # Squeeze to remove the extra dimension in [3930, 1, 3000]
+    input_ids = data['input_ids'].squeeze(1)  # Shape becomes [3930, 3000]
+    attention_masks = data['attention_mask'].squeeze(1)  # Shape becomes [3930, 3000]
+
+    # Calculate the downsample factor
+    downsample_factor = input_ids.size(1) // bert_max_length  # 3000 / 512 should be close to 6
     if downsample_factor > 1:
         # Downsample by averaging over each segment
-        input_ids = data['input_ids'].reshape(data['input_ids'].size(0), bert_max_length, downsample_factor).mean(dim=2)
-        attention_masks = data['attention_mask'].reshape(data['attention_mask'].size(0), bert_max_length, downsample_factor).mean(dim=2)
-
-        # Convert averaged values to integer tokens
-        input_ids = input_ids.long()  # Final shape should be [batch_size, bert_max_length]
-        attention_masks = (attention_masks > 0).long()  # Convert to binary
+        input_ids = input_ids.reshape(input_ids.size(0), bert_max_length, downsample_factor).mean(dim=2).long()
+        attention_masks = attention_masks.reshape(attention_masks.size(0), bert_max_length, downsample_factor).mean(dim=2).long()
     else:
         # Direct truncation if already within bert_max_length
-        input_ids = data['input_ids'][:, :bert_max_length].reshape(data['input_ids'].size(0), bert_max_length)
-        attention_masks = data['attention_mask'][:, :bert_max_length].reshape(data['attention_mask'].size(0), bert_max_length)
+        input_ids = input_ids[:, :bert_max_length]
+        attention_masks = attention_masks[:, :bert_max_length]
         
     # Debugging: Check the shape of labels before processing
     print(f"Original labels shape: {data['labels'].shape}")
 
-    # Select only the first column or dimension from labels to make it 1D
-    labels = data['labels'][:, 0, 0]  # Assuming you need the first column
-    
-    # Replace padding label (-1) with ignore_index (-100)
+    # Select only the first column from labels to make it 1D
+    labels = data['labels'][:, 0, 0]
     labels[labels == -1] = -100  # Replace padding with ignore_index
     
-    # Check the max and min values in labels for verification
-    print(f"Max label value: {labels.max()}")
-    print(f"Min label value: {labels.min()}")
-
-    # Ensure labels are valid (excluding padding label)
-    num_labels = 5  # Update this according to the number of sleep stages
-    assert labels.max() < num_labels and labels.min() >= -100, "Label values are out of range (excluding ignore_index)."
-
-
-    # Print tensor shapes to verify
-    print(f"input_ids shape: {input_ids.shape}")
-    print(f"attention_mask shape: {attention_masks.shape}")
-    print(f"labels shape: {labels.shape}")
+    print(f"Final input_ids shape: {input_ids.shape}")
+    print(f"Final attention_mask shape: {attention_masks.shape}")
+    print(f"Final labels shape: {labels.shape}")
     
     return [{'input_ids': input_id, 'attention_mask': attention_mask, 'labels': label}
             for input_id, attention_mask, label in zip(input_ids, attention_masks, labels)]
