@@ -78,10 +78,10 @@ def load_data(arrow_file_path):
         
     return dataset
 
-def pad_sequence(sequence, context_length, prediction_length):
+def pad_sequence(sequence, context_length):
     """
-    Pad a sequence if it's shorter than context_length + prediction_length.
-    Pads with zeros (or a value of your choice) to match the required length.
+    Pad a sequence if it's shorter than context_length.
+    Pads with -1 to match the required length.
     """
     required_length = context_length
     if len(sequence) < required_length:
@@ -90,19 +90,19 @@ def pad_sequence(sequence, context_length, prediction_length):
         return padded_sequence
     return sequence
 
-def split_into_chunks(data, context_length, prediction_length):
-    """
-    Split data into chunks of context_length + prediction_length.
-    Each chunk will have length = context_length + prediction_length.
-    """
-    chunk_size = context_length + prediction_length
-    chunks = [data[i:i + chunk_size] for i in range(0, len(data), chunk_size)]
+# def split_into_chunks(data, context_length, prediction_length):
+#     """
+#     Split data into chunks of context_length + prediction_length.
+#     Each chunk will have length = context_length + prediction_length.
+#     """
+#     chunk_size = context_length + prediction_length
+#     chunks = [data[i:i + chunk_size] for i in range(0, len(data), chunk_size)]
     
-    # Handle final chunk if it is shorter than the required length to reduce the data losses
-    if len(chunks[-1]) < chunk_size:
-        chunks[-1] = pad_sequence(chunks[-1], context_length, prediction_length)
+#     # Handle final chunk if it is shorter than the required length to reduce the data losses
+#     if len(chunks[-1]) < chunk_size:
+#         chunks[-1] = pad_sequence(chunks[-1], context_length, prediction_length)
     
-    return chunks
+#     return chunks
 
 def map_sleep_stage_to_label(sleep_stage):
     # Map the sleep stages to corresponding labels
@@ -121,7 +121,7 @@ def map_sleep_stage_to_label(sleep_stage):
     }
     return stage_mapping.get(sleep_stage, -1)  # -1 will be used as padding
 
-def tokenize_data(data, tokenizer, context_length, prediction_length):
+def tokenize_data(data, tokenizer, context_length):
     """
     Tokenize the data using Chronos tokenizer for sleep stage classification.
     Handles both short and long sequences by splitting or padding.
@@ -129,57 +129,41 @@ def tokenize_data(data, tokenizer, context_length, prediction_length):
     print(f"Tokenizing {len(data)} sleep stages.")
     
     # Pad short sequences and split long ones
-    if len(data) < context_length + prediction_length:
+    if len(data) < context_length:
         print(f"Padding short sequence with length {len(data)}")
-        data = pad_sequence(data, context_length, prediction_length)
-        chunks = [data]  # Treat padded sequence as a single chunk
-    else:
-        print(f"Splitting sequence with length {len(data)} into chunks")
-        chunks = split_into_chunks(data, context_length, prediction_length)
-    
-    print(f"Processing {len(chunks)} chunks")
+        data = pad_sequence(data, context_length)
+    # Convert to tensor with the expected shape of [1, 3000]
+    data_tensor = torch.tensor([data], dtype=torch.float32)  # Add batch dimension
+    print(f"Shape of data tensor before tokenization: {data_tensor.shape}")  # Debug
+
     
     tokenized_data = []
-    for chunk in chunks:
-        chunk = np.expand_dims(chunk, axis=0)  # Add batch dimension (reshape)
-        # Convert the chunk from NumPy array to PyTorch tensor
-        chunk = torch.tensor(chunk, dtype=torch.float32)  # Convert to tensor
-        
-        try:
-            # Split the chunk into context (past) and prediction (future)
-            context_chunk = chunk[:, :-prediction_length]
-            prediction_chunk = chunk[:, -prediction_length:]  # Last part for prediction
-            
-            # Map prediction_chunk values to label IDs using the updated function
-            mapped_labels = [map_sleep_stage_to_label(stage) for stage in prediction_chunk.flatten().numpy()]
-            mapped_labels = [label for label in mapped_labels if label is not None] # Filter out None
-            if not mapped_labels:
-                print("No valid labels in this chunk; skipping.")
-                continue  # Skip this chunk if no valid labels remain
+    try:
+        # Tokenize the padded sequence
+        input_ids, attention_mask, _ = tokenizer.context_input_transform(data_tensor)
+        print(f"Shape of input_ids after tokenization: {input_ids.shape}")  # Debug
 
-            
-            # Reshape back to the correct tensor shape, if necessary
-            labels_tensor = torch.tensor(mapped_labels).view(1, -1)  # Adjust dimensions as necessary
-            
-            # Apply ignore index for training
-            labels_tensor[labels_tensor == -1] = -100  # Set padding (-1) to ignore index (-100)
-            
-            # Transform the context and labels using the appropriate Chronos tokenizer methods
-            input_ids, attention_mask, scale = tokenizer.context_input_transform(context_chunk)
-            # labels, labels_mask = tokenizer.label_input_transform(prediction_chunk, scale)
-            
-            tokenized_data.append({
-                "input_ids": input_ids,
-                "attention_mask": attention_mask,
-                "labels": labels_tensor
-            })
-            
-        except Exception as e:
-            print(f"Error during tokenization: {e}")
-            traceback.print_exc()
+        # Map the padded data to labels
+        mapped_labels = [map_sleep_stage_to_label(stage) for stage in data]
+        mapped_labels = [label if label is not None else -1 for label in mapped_labels]
+        labels_tensor = torch.tensor(mapped_labels).view(1, -1)  # Shape to [1, 3000]
+        
+        # Set padding labels to ignore index
+        labels_tensor[labels_tensor == -1] = -100  # -1 is now -100 for padding ignore index
+        tokenized_data = {
+            "input_ids": input_ids,
+            "attention_mask": attention_mask,
+            "labels": labels_tensor
+        }
+        return tokenized_data
+        
+    except Exception as e:
+        print(f"Error during tokenization: {e}")
+        traceback.print_exc()
+        return None
     
-    print(f"Tokenized {len(tokenized_data)} chunks.")
-    return tokenized_data 
+            
+            
 
 def save_tokenized_data(tokenized_data, output_file):
     """ Save all tokenized data into a single PyTorch .pt file. """
@@ -224,7 +208,7 @@ def main():
     # training_data_paths: str,
     # probability: Optional[str] = None,
     context_length = 3000
-    prediction_length = 0
+    # prediction_length = 0
     # min_past: int = 64,
     # max_steps: int = 200_000,
     # save_steps: int = 50_000,
@@ -269,7 +253,7 @@ def main():
         eos_token_id=eos_token_id,
         use_eos_token=True,
         context_length=context_length,  # Required for ChronosConfig
-        prediction_length=prediction_length,  # Required for ChronosConfig
+        # prediction_length=prediction_length,  # Required for ChronosConfig
         model_type=model_type,  # Required for ChronosConfig
         num_samples=num_samples,  # Required for ChronosConfig
         temperature=temperature,  # Required for ChronosConfig
@@ -294,7 +278,7 @@ def main():
             continue
         
         # Tokenize the epochs directly
-        tokenized_sleep_stages = tokenize_data(sleep_stages, tokenizer, context_length, prediction_length)
+        tokenized_sleep_stages = tokenize_data(sleep_stages, tokenizer, context_length)
         if tokenized_sleep_stages:
             tokenized_data.extend(tokenized_sleep_stages)
         
