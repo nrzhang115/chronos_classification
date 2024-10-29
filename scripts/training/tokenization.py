@@ -136,8 +136,6 @@ def tokenize_data(data, tokenizer, context_length):
     data_tensor = torch.tensor([data], dtype=torch.float32)  # Add batch dimension
     print(f"Shape of data tensor before tokenization: {data_tensor.shape}")  # Debug
 
-    
-    tokenized_data = []
     try:
         # Tokenize the padded sequence
         input_ids, attention_mask, _ = tokenizer.context_input_transform(data_tensor)
@@ -160,6 +158,7 @@ def tokenize_data(data, tokenizer, context_length):
     except Exception as e:
         print(f"Error during tokenization: {e}")
         traceback.print_exc()
+        return None  # Explicitly return None if an error occurs
 
     
             
@@ -167,6 +166,7 @@ def tokenize_data(data, tokenizer, context_length):
 
 def save_tokenized_data(tokenized_data, output_file):
     """ Save all tokenized data into a single PyTorch .pt file. """
+    tokenized_data = [entry for entry in tokenized_data if entry is not None]
     if not tokenized_data:
         print("No tokenized data to save.")
         return
