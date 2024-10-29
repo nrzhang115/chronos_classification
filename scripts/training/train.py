@@ -78,7 +78,10 @@ def load_tokenized_data(file_path, bert_max_length=512):
     print(f"Original labels shape: {data['labels'].shape}")
 
     # Select only the first column from labels to make it 1D
-    labels = data['labels'][:, 0, 0]
+    # labels = data['labels'][:, 0, 0]
+    # Take the mode across the 512 tokens for each epoch
+    labels = data['labels'].reshape(data['labels'].size(0), -1)  # Shape: [3930, 512]
+    labels = torch.mode(labels, dim=1).values  # Shape becomes [3930]
     labels[labels == -1] = -100  # Replace padding with ignore_index
     
     print(f"Final input_ids shape: {input_ids.shape}")
