@@ -124,80 +124,68 @@ def map_sleep_stage_to_label(sleep_stage):
 def tokenize_data(data, tokenizer, context_length):
     """
     Tokenize the data using Chronos tokenizer for sleep stage classification.
-    Handles both short and long sequences by splitting or padding.
+    Ensures each epoch within the entry has 3000 tokens.
     """
-    print(f"Tokenizing {len(data)} sleep stages.")
+    print(f"Tokenizing {len(data)} sleep stages (epochs).")
     
-    # Pad short sequences and split long ones
-    if len(data) < context_length:
-        print(f"Padding short sequence with length {len(data)}")
-        data = pad_sequence(data, context_length)
-    # Convert to tensor with the expected shape of [1, 3000]
-    data_tensor = torch.tensor([data], dtype=torch.float32)  # Add batch dimension
-    print(f"Shape of data tensor before tokenization: {data_tensor.shape}")  # Debug
-
-    try:
-        # Tokenize the padded sequence
-        input_ids, attention_mask, _ = tokenizer.context_input_transform(data_tensor)
-        print(f"Shape of input_ids after tokenization: {input_ids.shape}")  # Debug
-
-        # Map the padded data to labels
-        mapped_labels = [map_sleep_stage_to_label(stage) for stage in data]
-        mapped_labels = [label if label is not None else -1 for label in mapped_labels]
-        labels_tensor = torch.tensor(mapped_labels).view(1, -1)  # Shape to [1, 3000]
+    tokenized_epochs = []
+    
+    for epoch in data:
+        # Pad each epoch to 3000 tokens if it has fewer data points
+        if len(epoch) < context_length:
+            epoch = pad_sequence(epoch, context_length)
         
-        # Set padding labels to ignore index
-        labels_tensor[labels_tensor == -1] = -100  # -1 is now -100 for padding ignore index
-        tokenized_data = {
-            "input_ids": input_ids,
-            "attention_mask": attention_mask,
-            "labels": labels_tensor
-        }
-        return tokenized_data
+        # Convert the epoch to a tensor with shape [1, 3000]
+        epoch_tensor = torch.tensor([epoch], dtype=torch.float32)
         
-    except Exception as e:
-        print(f"Error during tokenization: {e}")
-        traceback.print_exc()
-        return None  # Explicitly return None if an error occurs
-
-    
+        try:
+            # Tokenize the epoch
+            input_ids, attention_mask, _ = tokenizer.context_input_transform(epoch_tensor)
             
+            # Map the padded epoch data to labels
+            mapped_labels = [map_sleep_stage_to_label(stage) for stage in epoch]
+            mapped_labels = [label if label is not None else -1 for label in mapped_labels]
+            labels_tensor = torch.tensor(mapped_labels).view(1, -1)
             
+            # Set padding labels to ignore index
+            labels_tensor[labels_tensor == -1] = -100  # -1 is now -100 for padding ignore index
+            
+            # Append the tokenized epoch
+            tokenized_epochs.append({
+                "input_ids": input_ids.squeeze(0),  # Remove the extra dimension
+                "attention_mask": attention_mask.squeeze(0),
+                "labels": labels_tensor.squeeze(0)
+            })
+            
+        except Exception as e:
+            print(f"Error during tokenization: {e}")
+            traceback.print_exc()
+            continue  # Skip this epoch if an error occurs
 
-def save_tokenized_data(tokenized_data, output_file):
-    """ Save all tokenized data into a single PyTorch .pt file. """
-    tokenized_data = [entry for entry in tokenized_data if isinstance(entry, dict)]
-    if not tokenized_data:
-        print("No tokenized data to save.")
-        return
-    
-    # Prepare a dictionary to store all tokenized entries
-    all_tokenized_data = {
-        "input_ids": [],
-        "attention_mask": [],
-        "labels": []
+    # Stack all tokenized epochs for the entry
+    input_ids = torch.stack([epoch["input_ids"] for epoch in tokenized_epochs])
+    attention_mask = torch.stack([epoch["attention_mask"] for epoch in tokenized_epochs])
+    labels = torch.stack([epoch["labels"] for epoch in tokenized_epochs])
+
+    # Return the tokenized data in the correct shape
+    tokenized_data = {
+        "input_ids": input_ids,        # Shape: [num_epochs, 3000]
+        "attention_mask": attention_mask,  # Shape: [num_epochs, 3000]
+        "labels": labels               # Shape: [num_epochs, 3000]
     }
-    max_label_length = max(entry["labels"].size(1) for entry in tokenized_data)  # Find maximum label length
+    return tokenized_data
 
-    # Append each tokenized entry's tensors into the lists
-    for tokenized_entry in tokenized_data:
-        all_tokenized_data["input_ids"].append(tokenized_entry["input_ids"])
-        all_tokenized_data["attention_mask"].append(tokenized_entry["attention_mask"])
-        
-        # Pad labels to maximum length with -100 for ignore index
-        padded_labels = torch.full((1, max_label_length), -100, dtype=torch.long)
-        padded_labels[0, :tokenized_entry["labels"].size(1)] = tokenized_entry["labels"]
-        all_tokenized_data["labels"].append(padded_labels)
-
-    # Convert lists of tensors into a single stacked tensor (batch format)
-    all_tokenized_data["input_ids"] = torch.stack(all_tokenized_data["input_ids"])
-    all_tokenized_data["attention_mask"] = torch.stack(all_tokenized_data["attention_mask"])
-    all_tokenized_data["labels"] = torch.stack(all_tokenized_data["labels"])
-
-    # Save the entire dataset as a single .pt file
-    torch.save(all_tokenized_data, output_file)
     
-    print(f"All tokenized data saved to {output_file}")
+            
+            
+
+def save_individual_entry(entry_data, output_dir, entry_index):
+    """
+    Save a single tokenized entry with all its epochs as a .pt file.
+    """
+    entry_output_path = os.path.join(output_dir, f"tokenization_entry_{entry_index}.pt")
+    torch.save(entry_data, entry_output_path)
+    print(f"Saved tokenized data for entry {entry_index} to {entry_output_path}")
 
 
 @app.command()
@@ -270,28 +258,17 @@ def main():
     for entry_index, entry in enumerate(dataset):
         sleep_stages = entry['target']
         
-        
-        # Log the current entry being processed
         log_on_main(f"Processing entry {entry_index + 1} with {len(sleep_stages)} sleep stages", logger)
         
         if sleep_stages is None or len(sleep_stages) == 0:
             log_on_main(f"Skipping entry {entry_index + 1} as it has no valid sleep stages", logger)
             continue
         
-        # Tokenize the epochs directly
         tokenized_sleep_stages = tokenize_data(sleep_stages, tokenizer, context_length)
         if tokenized_sleep_stages:
-            tokenized_data.append(tokenized_sleep_stages)
+            save_individual_entry(tokenized_sleep_stages, output_dir, entry_index)
         
-    # Log tokenization result
-    log_on_main(f"Tokenization completed with {len(tokenized_data)} tokenized entries", logger)
-    # Debug
-    log_on_main(f"First 5 tokenized entries: {tokenized_data[:5]}", logger)
-    # Save tokenized data
-    log_on_main(f"Saving tokenized data to {output_dir}", logger)
-    # Save tokenized data
-    output_file = os.path.join(output_dir, 'tokenized_data_remapping.pt')
-    save_tokenized_data(tokenized_data, output_file)
+    log_on_main("Tokenization process completed for all entries.", logger)
     
 
 
