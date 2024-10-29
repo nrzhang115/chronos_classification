@@ -160,7 +160,7 @@ def tokenize_data(data, tokenizer, context_length):
     except Exception as e:
         print(f"Error during tokenization: {e}")
         traceback.print_exc()
-        return None
+
     
             
             
