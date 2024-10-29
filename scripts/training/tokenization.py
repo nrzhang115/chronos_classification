@@ -121,44 +121,48 @@ def map_sleep_stage_to_label(sleep_stage):
     }
     return stage_mapping.get(sleep_stage, -1)  # -1 will be used as padding
 
-def tokenize_data(data, tokenizer, context_length):
+def tokenize_data(entry_data, tokenizer, context_length):
     """
-    Tokenize the data using Chronos tokenizer for sleep stage classification.
-    Ensures each epoch within the entry has 3000 tokens.
+    Tokenize each epoch within an entry, ensuring each epoch has 3000 tokens.
+    Each entry can have multiple epochs, and each epoch will be padded or truncated
+    to ensure it has exactly 3000 tokens.
     """
-    print(f"Tokenizing {len(data)} sleep stages (epochs).")
-    
+    print(f"Tokenizing {len(entry_data)} epochs within an entry.")
+
     tokenized_epochs = []
     
-    for epoch in data:
-        # Pad each epoch to 3000 tokens if it has fewer data points
+    # Loop through each epoch in the entry
+    for epoch in entry_data:
+        # Ensure each epoch is padded to exactly 3000 tokens
         if len(epoch) < context_length:
             epoch = pad_sequence(epoch, context_length)
-        
-        # Convert the epoch to a tensor with shape [1, 3000]
+        elif len(epoch) > context_length:
+            epoch = epoch[:context_length]  # Truncate if it exceeds the desired length
+
+        # Convert the padded epoch into a tensor of shape [1, 3000]
         epoch_tensor = torch.tensor([epoch], dtype=torch.float32)
         
         try:
-            # Tokenize the epoch
+            # Tokenize the padded epoch
             input_ids, attention_mask, _ = tokenizer.context_input_transform(epoch_tensor)
             
-            # Map the padded epoch data to labels
+            # Map each sleep stage within the epoch to a label
             mapped_labels = [map_sleep_stage_to_label(stage) for stage in epoch]
             mapped_labels = [label if label is not None else -1 for label in mapped_labels]
             labels_tensor = torch.tensor(mapped_labels).view(1, -1)
-            
+
             # Set padding labels to ignore index
-            labels_tensor[labels_tensor == -1] = -100  # -1 is now -100 for padding ignore index
-            
-            # Append the tokenized epoch
+            labels_tensor[labels_tensor == -1] = -100  # -1 is replaced with -100 as ignore index
+
+            # Append the tokenized result of this epoch
             tokenized_epochs.append({
-                "input_ids": input_ids.squeeze(0),  # Remove the extra dimension
-                "attention_mask": attention_mask.squeeze(0),
-                "labels": labels_tensor.squeeze(0)
+                "input_ids": input_ids.squeeze(0),  # Shape: [3000]
+                "attention_mask": attention_mask.squeeze(0),  # Shape: [3000]
+                "labels": labels_tensor.squeeze(0)  # Shape: [3000]
             })
-            
+        
         except Exception as e:
-            print(f"Error during tokenization: {e}")
+            print(f"Error during tokenization of an epoch: {e}")
             traceback.print_exc()
             continue  # Skip this epoch if an error occurs
 
@@ -167,7 +171,7 @@ def tokenize_data(data, tokenizer, context_length):
     attention_mask = torch.stack([epoch["attention_mask"] for epoch in tokenized_epochs])
     labels = torch.stack([epoch["labels"] for epoch in tokenized_epochs])
 
-    # Return the tokenized data in the correct shape
+    # Return the tokenized data for this entry
     tokenized_data = {
         "input_ids": input_ids,        # Shape: [num_epochs, 3000]
         "attention_mask": attention_mask,  # Shape: [num_epochs, 3000]
