@@ -251,7 +251,7 @@ def main():
         n_special_tokens=n_special_tokens,
         pad_token_id=pad_token_id,
         eos_token_id=eos_token_id,
-        use_eos_token=True,
+        use_eos_token=False, # Set this to False to prevent extra token
         context_length=context_length,  # Required for ChronosConfig
         prediction_length=prediction_length,  # Required for ChronosConfig
         model_type=model_type,  # Required for ChronosConfig
@@ -279,7 +279,7 @@ def main():
         
         # Tokenize the epochs directly
         tokenized_sleep_stages = tokenize_data(sleep_stages, tokenizer, context_length)
-        if tokenized_sleep_stages:
+        if tokenized_sleep_stages is not None:
             tokenized_data.extend(tokenized_sleep_stages)
         
     # Log tokenization result
