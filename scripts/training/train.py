@@ -64,11 +64,11 @@ def load_tokenized_data(file_path, bert_max_length=512):
     attention_masks = data['attention_mask'].squeeze(1)  # Shape becomes [3930, 3000]
 
     # Calculate the downsample factor
-    downsample_factor = input_ids.size(1) // bert_max_length  # 3000 / 512 should be close to 6
+    downsample_factor = int(input_ids.size(1) / bert_max_length)  # Expect around 6
     if downsample_factor > 1:
-        # Downsample by averaging over each segment
-        input_ids = input_ids.reshape(input_ids.size(0), bert_max_length, downsample_factor).mean(dim=2).long()
-        attention_masks = attention_masks.reshape(attention_masks.size(0), bert_max_length, downsample_factor).mean(dim=2).long()
+        # Reshape and downsample by averaging over each segment
+        input_ids = input_ids[:, :bert_max_length * downsample_factor].reshape(input_ids.size(0), bert_max_length, downsample_factor).mean(dim=2).long()
+        attention_masks = attention_masks[:, :bert_max_length * downsample_factor].reshape(attention_masks.size(0), bert_max_length, downsample_factor).mean(dim=2).long()
     else:
         # Direct truncation if already within bert_max_length
         input_ids = input_ids[:, :bert_max_length]
