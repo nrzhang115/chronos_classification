@@ -73,7 +73,13 @@ def load_tokenized_data(file_path, bert_max_length=512, window_stride=256):
 
             # Get the mode of the labels within this chunk for classification
             chunk_labels = labels[i, start:end]
-            label_chunks.append(torch.mode(chunk_labels[chunk_labels != -100]).values)  # Ignore padding label -100
+            # Ignore padding labels; check if any valid labels are present
+            valid_labels = chunk_labels[chunk_labels != -100]
+            if valid_labels.numel() > 0:  # Only proceed if there are valid labels
+                label_chunks.append(torch.mode(valid_labels).values)
+            else:
+                # Skip chunks with only padding labels
+                continue
     
     # Stack all chunks into tensors
     input_ids = torch.stack(input_ids_chunks)  # Shape: [num_chunks, 512]
