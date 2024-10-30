@@ -84,6 +84,11 @@ def load_tokenized_data(file_path, bert_max_length=512):
     print(f"Final attention_mask shape: {attention_masks.shape}")
     print(f"Final labels shape: {labels.shape}")
     
+    # Debugging:
+    print(f"Sample input_ids: {input_ids[0]}")
+    print(f"Sample attention_mask: {attention_masks[0]}")
+    print(f"Sample label: {labels[0]}")
+    
     return [{'input_ids': input_id, 'attention_mask': attention_mask, 'labels': label}
             for input_id, attention_mask, label in zip(input_ids, attention_masks, labels)]
     
@@ -98,6 +103,10 @@ def main():
     dataset = load_tokenized_data(tokenized_data_path)
     
     print("Data loaded successfully.")
+    
+    # Check unique labels to ensure correct label distribution
+    unique_labels = torch.unique(torch.tensor([item['labels'] for item in dataset]))
+    print("Unique labels in dataset:", unique_labels)
     
     # Split into training and validation datasets (80% training, 20% validation)
     train_size = int(0.8 * len(dataset))
