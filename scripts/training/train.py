@@ -31,7 +31,7 @@ def compute_metrics(p):
         "f1_macro": f1,
     }
     
-    for i in range(6):
+    for i in range(5):
         metrics[f"precision_stage_{i}"] = precision_per_class[i]
         metrics[f"recall_stage_{i}"] = recall_per_class[i]
         metrics[f"f1_stage_{i}"] = f1_per_class[i]
@@ -74,14 +74,10 @@ def load_tokenized_data(file_path, bert_max_length=512):
         input_ids = input_ids[:, :bert_max_length]
         attention_masks = attention_masks[:, :bert_max_length]
         
-    # Debugging: Check the shape of labels before processing
-    print(f"Original labels shape: {data['labels'].shape}")
-
-    # Select only the first column from labels to make it 1D
-    # labels = data['labels'][:, 0, 0]
-    # Take the mode across the 512 tokens for each epoch
-    labels = data['labels'].reshape(data['labels'].size(0), -1)  # Shape: [3930, 512]
-    labels = torch.mode(labels, dim=1).values  # Shape becomes [3930]
+    # For labels, downsample similarly by chunking and taking majority class in each chunk
+    labels = data['labels'].squeeze(1)  # Remove extra dimension to shape [3930, 3000]
+    labels = labels[:, :bert_max_length * downsample_factor].reshape(labels.size(0), bert_max_length, downsample_factor)
+    labels, _ = labels.mode(dim=2)  # Shape [3930, 512] after taking the mode in each chunk
     labels[labels == -1] = -100  # Replace padding with ignore_index
     
     print(f"Final input_ids shape: {input_ids.shape}")
