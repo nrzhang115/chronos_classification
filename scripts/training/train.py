@@ -75,9 +75,9 @@ def load_tokenized_data(file_path, bert_max_length=512):
         attention_masks = attention_masks[:, :bert_max_length]
         
     # For labels, downsample similarly by chunking and taking majority class in each chunk
-    labels = data['labels'].squeeze(1)  # Remove extra dimension to shape [3930, 3000]
-    labels = labels[:, :bert_max_length * downsample_factor].reshape(labels.size(0), bert_max_length, downsample_factor)
-    labels, _ = labels.mode(dim=2)  # Shape [3930, 512] after taking the mode in each chunk
+    labels = data['labels'].squeeze(1)  # Shape: [3930, 3000]
+    labels = labels[:, :bert_max_length * downsample_factor].reshape(labels.size(0), -1)
+    labels = torch.mode(labels, dim=1).values  # Shape becomes [3930] with majority class per sequence
     labels[labels == -1] = -100  # Replace padding with ignore_index
     
     print(f"Final input_ids shape: {input_ids.shape}")
