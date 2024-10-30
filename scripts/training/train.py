@@ -78,8 +78,8 @@ def load_tokenized_data(file_path, bert_max_length=512, window_stride=256):
             if valid_labels.numel() > 0:  # Only proceed if there are valid labels
                 label_chunks.append(torch.mode(valid_labels).values)
             else:
-                # Skip chunks with only padding labels
-                continue
+                # Use ignore index for chunks with only padding labels
+                label_chunks.append(torch.tensor(-100))
     
     # Stack all chunks into tensors
     input_ids = torch.stack(input_ids_chunks)  # Shape: [num_chunks, 512]
