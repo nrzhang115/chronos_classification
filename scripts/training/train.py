@@ -211,10 +211,7 @@ def main():
 
     print("Data successfully split into training and validation sets.")
     
-    # Calculate class weights based on labels in the training dataset
-    train_labels = torch.tensor([item['labels'] for item in train_dataset if item['labels'] != -100])
-    class_weights = compute_class_weight('balanced', classes=np.unique(train_labels.numpy()), y=train_labels.numpy())
-    class_weights = torch.tensor(class_weights, dtype=torch.float).to("cuda" if torch.cuda.is_available() else "cpu")
+   
 
     # Initialize the BERT model with class weights
     model = BertForSleepStageClassification(num_labels=5)
@@ -242,6 +239,20 @@ def main():
     )
 
     print("Training arguments set up successfully.")
+    
+    # Calculate class weights based on labels in the training dataset
+    train_labels = torch.tensor([item['labels'] for item in train_dataset if item['labels'] != -100])
+    class_weights = compute_class_weight('balanced', classes=np.unique(train_labels.numpy()), y=train_labels.numpy())
+    # Convert to a tensor and apply a boost to N2
+    class_weights = torch.tensor(class_weights, dtype=torch.float)
+    w_label_index = 0 
+    n2_label_index = 2  
+    boost_factor = 2.0  
+    class_weights[w_label_index] *= boost_factor  # Increase the weight for W
+    class_weights[n2_label_index] *= boost_factor  # Increase the weight for N2
+
+    # Move class weights to GPU if available
+    class_weights = class_weights.to("cuda" if torch.cuda.is_available() else "cpu")
     
     # Set up WeightedRandomSampler for handling class imbalance
     sample_weights = [class_weights[label] for label in train_labels]
