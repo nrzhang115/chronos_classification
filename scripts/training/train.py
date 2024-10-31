@@ -11,6 +11,10 @@ import numpy as np
 from sklearn.utils.class_weight import compute_class_weight
 from torch.utils.data import WeightedRandomSampler
 
+from sklearn.metrics import precision_recall_fscore_support, accuracy_score, confusion_matrix
+import matplotlib.pyplot as plt
+import seaborn as sns
+
 def compute_metrics(p):
     predictions, labels = p
     
@@ -25,6 +29,19 @@ def compute_metrics(p):
     
     # For each class (sleep stages), calculate precision, recall, and F1 score
     precision_per_class, recall_per_class, f1_per_class, _ = precision_recall_fscore_support(labels, predictions, average=None)
+    
+    # Calculate confusion matrix
+    cm = confusion_matrix(labels, predictions)
+    
+    # Plot and save the confusion matrix
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=["Wake", "N1", "N2", "N3", "REM"], 
+                yticklabels=["Wake", "N1", "N2", "N3", "REM"])
+    plt.xlabel("Predicted Labels")
+    plt.ylabel("True Labels")
+    plt.title("Confusion Matrix for Sleep Stage Classification")
+    plt.savefig("confusion_matrix.png")
+    plt.close()
     
     metrics = {
         "accuracy": accuracy,

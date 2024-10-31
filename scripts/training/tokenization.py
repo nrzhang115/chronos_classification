@@ -112,11 +112,11 @@ def map_sleep_stage_to_label(sleep_stage):
 
     # Map known sleep stages to corresponding labels
     stage_mapping = {
-        0: 0,  # REM
-        1: 1,  # Wake
-        2: 2,  # N1
-        3: 3,  # N2
-        4: 4   # N3
+        0: 0,  # Wake
+        1: 1,  # N1
+        2: 2,  # N2
+        3: 3,  # N3
+        4: 4   # REM
     }
     return stage_mapping.get(sleep_stage, -1)  # -1 will be used as padding
 
