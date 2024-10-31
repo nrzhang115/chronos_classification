@@ -46,15 +46,50 @@ def save_metrics_to_excel(metrics, output_file):
     df.to_excel(output_file, index=False)
     print(f"Metrics saved to {output_file}")
     
+# class BertForSleepStageClassification(nn.Module):
+#     def __init__(self, num_labels=5):
+#         super(BertForSleepStageClassification, self).__init__()
+#         self.bert = BertForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=num_labels)
+
+#     def forward(self, input_ids, attention_mask, labels=None):
+#         outputs = self.bert(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
+#         return outputs
+
+# Try FocalLoss
+class FocalLoss(nn.Module):
+    def __init__(self, alpha=1, gamma=2):
+        super(FocalLoss, self).__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+
+    def forward(self, inputs, targets):
+        BCE_loss = nn.CrossEntropyLoss()(inputs, targets)
+        pt = torch.exp(-BCE_loss)
+        focal_loss = self.alpha * (1 - pt) ** self.gamma * BCE_loss
+        return focal_loss
+
+# Update the model to use Focal Loss
 class BertForSleepStageClassification(nn.Module):
     def __init__(self, num_labels=5):
         super(BertForSleepStageClassification, self).__init__()
         self.bert = BertForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=num_labels)
+        self.loss_fn = FocalLoss()  # Use Focal Loss here
+
+# Update the model to use Focal Loss
+class BertForSleepStageClassification(nn.Module):
+    def __init__(self, num_labels=5):
+        super(BertForSleepStageClassification, self).__init__()
+        self.bert = BertForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=num_labels)
+        self.loss_fn = FocalLoss()  # Use Focal Loss here
 
     def forward(self, input_ids, attention_mask, labels=None):
         outputs = self.bert(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
-        return outputs
-    
+        logits = outputs.logits
+        if labels is not None:
+            loss = self.loss_fn(logits.view(-1, self.bert.config.num_labels), labels.view(-1))
+            return loss, logits
+        return logits
+      
 # Function to load your tokenized data using sliding window approach
 def load_tokenized_data(file_path, bert_max_length=512, window_stride=256):
     data = torch.load(file_path)
@@ -174,7 +209,7 @@ def main():
     # Define the training arguments
     training_args = TrainingArguments(
         output_dir=output_dir,
-        evaluation_strategy="steps",   # Enables evaluation during training
+        eval_strategy="steps",   # Enables evaluation during training
         eval_steps=500,                # Evaluate every 500 steps
         save_steps=1000,
         per_device_train_batch_size=32,
