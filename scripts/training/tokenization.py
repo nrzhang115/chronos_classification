@@ -205,9 +205,11 @@ def main():
     nch_arrow_path = "/srv/scratch/z5298768/chronos_classification/prepare_time_seires/C4-M1/nch_sleep_data.arrow"
     output_dir = "/srv/scratch/z5298768/chronos_classification/tokenization"
     
+
+    
     # training_data_paths: str,
     # probability: Optional[str] = None,
-    context_length = 3000
+    context_length = 1400
     prediction_length = 0
     # min_past: int = 64,
     # max_steps: int = 200_000,
@@ -222,7 +224,7 @@ def main():
     model_type = "seq2seq"
     tokenizer_class = "MeanScaleUniformBins"
     tokenizer_kwargs = {'low_limit': -15.0, 'high_limit': 15.0}
-    n_tokens = 3000 # Number of tokens for each 30s epoch 
+    n_tokens = context_length # Each epoch only contains one token
     n_special_tokens = 2
     pad_token_id = 0
     eos_token_id = 1

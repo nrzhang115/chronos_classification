@@ -8,6 +8,7 @@ import pandas as pd
 from sklearn.metrics import precision_recall_fscore_support, accuracy_score
 from transformers import default_data_collator
 import numpy as np
+from sklearn.utils.class_weight import compute_class_weight
 
 def compute_metrics(p):
     predictions, labels = p
@@ -43,15 +44,27 @@ def save_metrics_to_excel(metrics, output_file):
     df = pd.DataFrame([metrics])  # Convert metrics dictionary to DataFrame
     df.to_excel(output_file, index=False)
     print(f"Metrics saved to {output_file}")
+    
 
+# Calculate class weights
+labels = torch.tensor([item['labels'] for item in dataset if item['labels'] != -100])
+class_weights = compute_class_weight('balanced', classes=np.unique(labels.numpy()), y=labels.numpy())
+class_weights = torch.tensor(class_weights, dtype=torch.float).to("cuda" if torch.cuda.is_available() else "cpu")
+
+# Uodate model to use weights in the loss function 
 class BertForSleepStageClassification(nn.Module):
-    def __init__(self, num_labels=5):
+    def __init__(self, num_labels=5, class_weights=None):
         super(BertForSleepStageClassification, self).__init__()
         self.bert = BertForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=num_labels)
+        self.loss_fn = nn.CrossEntropyLoss(weight=class_weights) if class_weights is not None else nn.CrossEntropyLoss()
 
     def forward(self, input_ids, attention_mask, labels=None):
         outputs = self.bert(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
-        return outputs
+        logits = outputs.logits
+        if labels is not None:
+            loss = self.loss_fn(logits.view(-1, self.bert.config.num_labels), labels.view(-1))
+            return loss, logits
+        return logits
     
 # Function to load your tokenized data using sliding window approach
 def load_tokenized_data(file_path, bert_max_length=512, window_stride=256):
@@ -169,8 +182,9 @@ def main():
         save_steps=1000,
         per_device_train_batch_size=32,
         per_device_eval_batch_size=32, # Batch size for evaluation
-        num_train_epochs=3,            # Train the data three times
+        num_train_epochs=5,            # Train the data three times
         logging_dir=f"{output_dir}/logs",
+        learning_rate=2e-5,          # Lower learning rate for better convergence on minority classes
         logging_steps=500,
         save_total_limit=2,            # Keeps only 2 last checkpoints
         load_best_model_at_end=True,   # Load the best model based on evaluation
