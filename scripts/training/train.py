@@ -193,14 +193,24 @@ def main():
     # Set up WeightedRandomSampler for handling class imbalance
     sample_weights = [class_weights[label] for label in train_labels]
     sampler = WeightedRandomSampler(sample_weights, num_samples=len(sample_weights), replacement=True)
-    train_dataloader = DataLoader(train_dataset, sampler=sampler, batch_size=training_args.per_device_train_batch_size)
+
+    # Pass the sampler directly to Trainer by overriding the get_train_dataloader method
+    class CustomTrainer(Trainer):
+        def get_train_dataloader(self):
+            return DataLoader(
+                self.train_dataset,
+                batch_size=self.args.train_batch_size,
+                sampler=sampler,
+                collate_fn=self.data_collator,
+                drop_last=self.args.dataloader_drop_last,
+                num_workers=self.args.dataloader_num_workers
+            )
     
     # Set up Trainer
     trainer = Trainer(
         model=model,
         args=training_args,
-        #train_dataset=train_dataset,      # Pass the training dataset
-        train_dataset=train_dataloader,
+        train_dataset=train_dataset,      # Pass the training dataset
         eval_dataset=val_dataset,         # Pass the validation dataset for evaluation
         data_collator=default_data_collator,  # Use the default data collator for dictionary-style batches
         compute_metrics=compute_metrics   # Function to calculate precision, recall, F1, and accuracy
