@@ -39,9 +39,10 @@ def compute_metrics(p):
                 yticklabels=["Wake", "N1", "N2", "N3", "REM"])
     plt.xlabel("Predicted Labels")
     plt.ylabel("True Labels")
-    plt.title("Confusion Matrix for Sleep Stage Classification")
-    plt.savefig("confusion_matrix.png")
+    plt.title("Confusion Matrix for Chronos Sleep Stage Classification")
+    plt.savefig("/srv/scratch/z5298768/chronos_classification/confusion_matrix.png")  
     plt.close()
+    
     
     metrics = {
         "accuracy": accuracy,
@@ -231,7 +232,7 @@ def main():
         save_steps=1000,
         per_device_train_batch_size=32,
         per_device_eval_batch_size=32, # Batch size for evaluation
-        num_train_epochs=5,            # Train the data three times
+        num_train_epochs=10,            # Train the data 10 times
         logging_dir=f"{output_dir}/logs",
         learning_rate=2e-5,          # Lower learning rate for better convergence on minority classes
         logging_steps=500,
