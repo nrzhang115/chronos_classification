@@ -9,6 +9,7 @@ from sklearn.metrics import precision_recall_fscore_support, accuracy_score
 from transformers import default_data_collator
 import numpy as np
 from sklearn.utils.class_weight import compute_class_weight
+from torch.utils.data import WeightedRandomSampler
 
 def compute_metrics(p):
     predictions, labels = p
@@ -45,26 +46,14 @@ def save_metrics_to_excel(metrics, output_file):
     df.to_excel(output_file, index=False)
     print(f"Metrics saved to {output_file}")
     
-
-# Calculate class weights
-labels = torch.tensor([item['labels'] for item in dataset if item['labels'] != -100])
-class_weights = compute_class_weight('balanced', classes=np.unique(labels.numpy()), y=labels.numpy())
-class_weights = torch.tensor(class_weights, dtype=torch.float).to("cuda" if torch.cuda.is_available() else "cpu")
-
-# Uodate model to use weights in the loss function 
 class BertForSleepStageClassification(nn.Module):
-    def __init__(self, num_labels=5, class_weights=None):
+    def __init__(self, num_labels=5):
         super(BertForSleepStageClassification, self).__init__()
         self.bert = BertForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=num_labels)
-        self.loss_fn = nn.CrossEntropyLoss(weight=class_weights) if class_weights is not None else nn.CrossEntropyLoss()
 
     def forward(self, input_ids, attention_mask, labels=None):
         outputs = self.bert(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
-        logits = outputs.logits
-        if labels is not None:
-            loss = self.loss_fn(logits.view(-1, self.bert.config.num_labels), labels.view(-1))
-            return loss, logits
-        return logits
+        return outputs
     
 # Function to load your tokenized data using sliding window approach
 def load_tokenized_data(file_path, bert_max_length=512, window_stride=256):
@@ -169,6 +158,14 @@ def main():
 
     print("Data successfully split into training and validation sets.")
     
+    # Calculate class weights based on labels in the training dataset
+    train_labels = torch.tensor([item['labels'] for item in train_dataset if item['labels'] != -100])
+    class_weights = compute_class_weight('balanced', classes=np.unique(train_labels.numpy()), y=train_labels.numpy())
+    class_weights = torch.tensor(class_weights, dtype=torch.float).to("cuda" if torch.cuda.is_available() else "cpu")
+
+    # Initialize the BERT model with class weights
+    model = BertForSleepStageClassification(num_labels=5)
+    print("Model initialized successfully.")
 
     # Initialize the BERT model for sleep stage classification
     model = BertForSleepStageClassification(num_labels=5)  # Sleep stages 0-4
@@ -193,11 +190,17 @@ def main():
 
     print("Training arguments set up successfully.")
     
+    # Set up WeightedRandomSampler for handling class imbalance
+    sample_weights = [class_weights[label] for label in train_labels]
+    sampler = WeightedRandomSampler(sample_weights, num_samples=len(sample_weights), replacement=True)
+    train_dataloader = DataLoader(train_dataset, sampler=sampler, batch_size=training_args.per_device_train_batch_size)
+    
     # Set up Trainer
     trainer = Trainer(
         model=model,
         args=training_args,
-        train_dataset=train_dataset,      # Pass the training dataset
+        #train_dataset=train_dataset,      # Pass the training dataset
+        train_dataset=train_dataloader,
         eval_dataset=val_dataset,         # Pass the validation dataset for evaluation
         data_collator=default_data_collator,  # Use the default data collator for dictionary-style batches
         compute_metrics=compute_metrics   # Function to calculate precision, recall, F1, and accuracy
