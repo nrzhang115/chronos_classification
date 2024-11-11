@@ -187,7 +187,7 @@ if __name__ == "__main__":
     parser.add_argument("-N", "--num-series", type=int, default=1000_000)
     parser.add_argument("-J", "--max-kernels", type=int, default=5)
     args = parser.parse_args()
-    path = Path(__file__).parent / "kernelsynth-data.arrow"
+    path = Path("/srv/scratch/z5298768/chronos-forecasting/kernelsynth-data.arrow")
 
     generated_dataset = Parallel(n_jobs=-1)(
         delayed(generate_time_series)(max_kernels=args.max_kernels)
