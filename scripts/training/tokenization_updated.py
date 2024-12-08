@@ -69,25 +69,26 @@ class ChronosEpochTokenizer:
 def main_tokenization():
     # Input and output paths
     arrow_file_path = "/srv/scratch/z5298768/chronos_classification/prepare_time_seires/C4-M1/nch_sleep_data.arrow"
-    output_dir = "/srv/scratch/z5298768/chronos_classification/tokenization_updated"
+    output_dir = "/srv/scratch/z5298768/chronos_classification/tokenization"
     os.makedirs(output_dir, exist_ok=True)
 
     # Tokenizer Configuration
-    token_length = 512
+    context_length = 512  # Length of each sequence (512 tokens)
     n_tokens = 4096
     tokenizer_class = "MeanScaleUniformBins"
     tokenizer_kwargs = {"low_limit": -15.0, "high_limit": 15.0}
     
-    # Add missing parameters required by ChronosConfig
-    prediction_length = 0  # Not needed for classification, set to 0
-    n_special_tokens = 2  # Typical value for special tokens (e.g., PAD and EOS)
-    pad_token_id = 0  # Token ID for padding
-    eos_token_id = 1  # Token ID for end-of-sequence
-    use_eos_token = True  # Whether to use the EOS token
-    num_samples = 1  # Number of samples for stochastic sampling (not used here)
+    # Required parameters for ChronosConfig
+    prediction_length = 0  # Not needed for classification
+    n_special_tokens = 2  # Typically PAD and EOS tokens
+    pad_token_id = 0  # Padding token ID
+    eos_token_id = 1  # End-of-sequence token ID
+    use_eos_token = True  # Whether to use EOS tokens
+    num_samples = 1  # For stochastic sampling
     temperature = 1.0  # Sampling temperature (not used here)
-    top_k = 50  # Top-k sampling parameter (not used here)
-    top_p = 1.0  # Top-p sampling parameter (not used here)
+    top_k = 50  # Top-k sampling (not used here)
+    top_p = 1.0  # Top-p sampling (not used here)
+    model_type = "seq2seq"  # Task type
 
     # Initialize tokenizer
     tokenizer = ChronosConfig(
@@ -98,18 +99,20 @@ def main_tokenization():
         pad_token_id=pad_token_id,
         eos_token_id=eos_token_id,
         use_eos_token=use_eos_token,
-        prediction_length=prediction_length,  # Set to 0 for classification
+        prediction_length=prediction_length,
         num_samples=num_samples,
         temperature=temperature,
         top_k=top_k,
         top_p=top_p,
+        context_length=context_length, 
+        model_type=model_type,
     ).create_tokenizer()
 
     # Initialize dataset
     dataset = ChronosEpochTokenizer(
         arrow_file_path=arrow_file_path,
         tokenizer=tokenizer,
-        token_length=token_length,
+        token_length=context_length,  # Use context_length here as well
     )
 
     # Tokenize and save
