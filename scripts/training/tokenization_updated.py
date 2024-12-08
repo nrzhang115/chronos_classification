@@ -1,7 +1,7 @@
 import os
-import torch
 import pyarrow as pa
-import pyarrow.parquet as pq
+import pyarrow.ipc as ipc
+import torch
 import numpy as np
 from typing import List
 from chronos import ChronosConfig, ChronosTokenizer
@@ -20,7 +20,11 @@ class ChronosEpochTokenizer:
         np_dtype=np.float32,
     ) -> None:
         assert os.path.exists(arrow_file_path), f"Arrow file not found: {arrow_file_path}"
-        self.dataset = pq.read_table(arrow_file_path)
+        
+        # Open the Arrow file using IPC
+        with ipc.open_file(arrow_file_path) as arrow_file:
+            self.dataset = arrow_file.read_all()  # Load all data into memory
+        
         self.tokenizer = tokenizer
         self.token_length = token_length
         self.np_dtype = np_dtype
@@ -59,17 +63,17 @@ class ChronosEpochTokenizer:
         return input_ids.squeeze(0), attention_mask.squeeze(0)
 
     def __iter__(self):
-        for i in range(self.dataset.num_rows):
-            row = self.dataset.slice(i, 1).to_pydict()
-            start = row["start"][0]  # Timestamp
-            target = row["target"][0]  # List of labels
+        for i in range(len(self.dataset)):
+            row = self.dataset[i]
+            start = row["start"].as_py()  # Convert start time
+            target = row["target"].to_pylist()  # Convert target list
             yield from self.preprocess_entry(start, target)
 
 
 def main_tokenization():
     # Input and output paths
     arrow_file_path = "/srv/scratch/z5298768/chronos_classification/prepare_time_seires/C4-M1/nch_sleep_data.arrow"
-    output_dir = "/srv/scratch/z5298768/chronos_classification/tokenization"
+    output_dir = "/srv/scratch/z5298768/chronos_classification/tokenization_updated"
     os.makedirs(output_dir, exist_ok=True)
 
     # Tokenizer Configuration
@@ -104,8 +108,8 @@ def main_tokenization():
         temperature=temperature,
         top_k=top_k,
         top_p=top_p,
-        context_length=context_length, 
-        model_type=model_type,
+        context_length=context_length,  # Correctly use context_length
+        model_type=model_type,          # Set to "seq2seq"
     ).create_tokenizer()
 
     # Initialize dataset
@@ -123,7 +127,7 @@ def main_tokenization():
     tokenized_output_path = os.path.join(output_dir, "tokenized_epochs.pt")
     torch.save(tokenized_data, tokenized_output_path)
 
-    #print(f"Tokenized epochs saved at: {tokenized_output_path}")
+    print(f"Tokenized epochs saved at: {tokenized_output_path}")
 
 
 if __name__ == "__main__":
