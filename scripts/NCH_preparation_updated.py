@@ -2,15 +2,14 @@ import argparse
 import glob
 import os
 import numpy as np
-import pandas as pd
 from gluonts.dataset.arrow import ArrowWriter
 from tqdm.auto import tqdm
 from mne.io import read_raw_edf
 import gc
 
-EPOCH_SEC_SIZE = 30  # 30 seconds per epoch
-TARGET_SAMPLING_RATE = 100  # Target sampling rate (100 Hz)
-TOKEN_LENGTH = 512  # Number of tokens per epoch
+EPOCH_SEC_SIZE = ss.data.EPOCH_SEC_SIZE  # Use the predefined epoch size (30 seconds)
+TARGET_SAMPLING_RATE = ss.info.REFERENCE_FREQ  # Use the predefined target sampling rate (100Hz)
+
 
 
 def split_into_epochs(eeg_signal, sampling_rate, epoch_length_s=30):
@@ -28,23 +27,6 @@ def split_into_epochs(eeg_signal, sampling_rate, epoch_length_s=30):
     return epochs
 
 
-def tokenize_signal(eeg_signal: np.ndarray, token_length: int = 512) -> np.ndarray:
-    """
-    Tokenize a 30-second EEG signal into 512 tokens.
-    """
-    # Normalize the signal (e.g., scale to [-1, 1])
-    eeg_signal = (eeg_signal - np.min(eeg_signal)) / (np.max(eeg_signal) - np.min(eeg_signal))
-    eeg_signal = 2 * eeg_signal - 1  # Scale to [-1, 1]
-
-    # Split the signal into token_length chunks
-    split_signal = np.array_split(eeg_signal, token_length)
-
-    # Generate tokens by summarizing each chunk (e.g., using mean pooling)
-    tokens = np.array([np.mean(chunk) for chunk in split_signal])
-
-    return tokens
-
-
 def process_nch_data(psg_fnames, select_ch, chunk_size=10):
     """
     Process the NCH dataset in chunks to save memory.
@@ -56,7 +38,7 @@ def process_nch_data(psg_fnames, select_ch, chunk_size=10):
 
         data_list = []  # Reset data_list for each chunk
 
-        for psg_fname in psg_chunk:
+        for psg_fname in tqdm(psg_chunk, desc="Processing files"):
             # Read EEG data using MNE
             raw = read_raw_edf(psg_fname, preload=True)
 
@@ -72,16 +54,14 @@ def process_nch_data(psg_fnames, select_ch, chunk_size=10):
             eeg_signal = raw.get_data()[0]  # single-channel data
             epochs = split_into_epochs(eeg_signal, TARGET_SAMPLING_RATE)
 
-            # Tokenize each epoch
-            tokenized_epochs = [tokenize_signal(epoch, TOKEN_LENGTH) for epoch in epochs]
-
-            if len(tokenized_epochs) == 0:
+            if len(epochs) == 0:
                 print(f"Skipping {psg_fname} due to lack of valid data.")
                 continue
 
             # Prepare the time series entry
             entry = {
-                "eeg_epochs": tokenized_epochs,  # Save the tokenized EEG epochs
+                "eeg_epochs": epochs,  # Save the segmented EEG epochs
+                "file_name": os.path.basename(psg_fname),  # Keep track of the source file
             }
             data_list.append(entry)
 
@@ -97,12 +77,15 @@ def process_nch_data(psg_fnames, select_ch, chunk_size=10):
 
 
 def save_to_arrow(data_list, output_dir):
+    """
+    Save the prepared data to an Arrow file.
+    """
     # Ensure the output directory exists
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    # Define the path for the arrow file
-    path = os.path.join(output_dir, 'nch_sleep_data.arrow')
+    # Define the path for the Arrow file
+    path = os.path.join(output_dir, 'nch_sleep_data_updated.arrow')
 
     # Write the data list to an Arrow file
     ArrowWriter(compression="lz4").write_to_file(
@@ -116,7 +99,7 @@ def save_to_arrow(data_list, output_dir):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data_dir", type=str, default="/srv/scratch/speechdata/sleep_data/NCH/nch",
-                        help="Directory with PSG and annotation files.")
+                        help="Directory with PSG files.")
     parser.add_argument("--output_dir", type=str, default="/srv/scratch/z5298768/chronos_classification/prepare_time_seires/C4-M1",
                         help="Directory to save the arrow file.")
     parser.add_argument("--select_ch", type=str, default="EEG C4-M1",
@@ -127,7 +110,7 @@ def main():
     psg_fnames = glob.glob(os.path.join(args.data_dir, "*.edf"))
 
     # Check if files are found
-    print(f"Found {len(psg_fnames)} .edf files")
+    # print(f"Found {len(psg_fnames)} .edf files")
 
     if len(psg_fnames) == 0:
         print("Error: No .edf files found in the specified directory.")
