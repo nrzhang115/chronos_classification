@@ -5,6 +5,7 @@ import numpy as np
 from gluonts.dataset.arrow import ArrowWriter
 from tqdm.auto import tqdm
 from mne.io import read_raw_edf
+import sleep_study as ss
 import gc
 
 EPOCH_SEC_SIZE = ss.data.EPOCH_SEC_SIZE  # Use the predefined epoch size (30 seconds)
