@@ -1,9 +1,9 @@
 import os
 import torch
+import pyarrow as pa
+import pyarrow.parquet as pq
 import numpy as np
-from gluonts.dataset.arrow import FileDataset
-from gluonts.itertools import Map
-from typing import Optional
+from typing import List
 from chronos import ChronosConfig, ChronosTokenizer
 
 
@@ -20,18 +20,15 @@ class ChronosEpochTokenizer:
         np_dtype=np.float32,
     ) -> None:
         assert os.path.exists(arrow_file_path), f"Arrow file not found: {arrow_file_path}"
-        self.dataset = FileDataset(path=arrow_file_path, freq="h")
+        self.dataset = pq.read_table(arrow_file_path)
         self.tokenizer = tokenizer
         self.token_length = token_length
         self.np_dtype = np_dtype
 
-    def preprocess_entry(self, entry: dict) -> list:
+    def preprocess_entry(self, start, target: List[int]) -> list:
         """
-        Preprocess each entry to tokenize every individual label.
+        Preprocess a single dataset row to tokenize every individual label.
         """
-        entry = {f: entry[f] for f in ["start", "target"]}
-        target = np.asarray(entry["target"], dtype=np.int32)
-
         # Generate 512 tokens for each label in the target
         tokenized_epochs = []
         for label in target:
@@ -62,8 +59,11 @@ class ChronosEpochTokenizer:
         return input_ids.squeeze(0), attention_mask.squeeze(0)
 
     def __iter__(self):
-        for entry in self.dataset:
-            yield from self.preprocess_entry(entry)
+        for i in range(self.dataset.num_rows):
+            row = self.dataset.slice(i, 1).to_pydict()
+            start = row["start"][0]  # Timestamp
+            target = row["target"][0]  # List of labels
+            yield from self.preprocess_entry(start, target)
 
 
 def main_tokenization():
