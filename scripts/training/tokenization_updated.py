@@ -63,10 +63,11 @@ class ChronosEpochTokenizer:
         return input_ids.squeeze(0), attention_mask.squeeze(0)
 
     def __iter__(self):
-        for i in range(len(self.dataset)):
-            row = self.dataset[i]
-            start = row["start"].as_py()  # Convert start time
-            target = row["target"].to_pylist()  # Convert target list
+        # Access rows using Arrow Table
+        start_column = self.dataset["start"]
+        target_column = self.dataset["target"]
+
+        for start, target in zip(start_column.to_pylist(), target_column.to_pylist()):
             yield from self.preprocess_entry(start, target)
 
 
