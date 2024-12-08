@@ -77,14 +77,32 @@ def main_tokenization():
     n_tokens = 4096
     tokenizer_class = "MeanScaleUniformBins"
     tokenizer_kwargs = {"low_limit": -15.0, "high_limit": 15.0}
+    
+    # Add missing parameters required by ChronosConfig
+    prediction_length = 0  # Not needed for classification, set to 0
+    n_special_tokens = 2  # Typical value for special tokens (e.g., PAD and EOS)
+    pad_token_id = 0  # Token ID for padding
+    eos_token_id = 1  # Token ID for end-of-sequence
+    use_eos_token = True  # Whether to use the EOS token
+    num_samples = 1  # Number of samples for stochastic sampling (not used here)
+    temperature = 1.0  # Sampling temperature (not used here)
+    top_k = 50  # Top-k sampling parameter (not used here)
+    top_p = 1.0  # Top-p sampling parameter (not used here)
 
     # Initialize tokenizer
     tokenizer = ChronosConfig(
         tokenizer_class=tokenizer_class,
         tokenizer_kwargs=tokenizer_kwargs,
         n_tokens=n_tokens,
-        model_type="classification",
-        context_length=token_length,
+        n_special_tokens=n_special_tokens,
+        pad_token_id=pad_token_id,
+        eos_token_id=eos_token_id,
+        use_eos_token=use_eos_token,
+        prediction_length=prediction_length,  # Set to 0 for classification
+        num_samples=num_samples,
+        temperature=temperature,
+        top_k=top_k,
+        top_p=top_p,
     ).create_tokenizer()
 
     # Initialize dataset
@@ -102,7 +120,7 @@ def main_tokenization():
     tokenized_output_path = os.path.join(output_dir, "tokenized_epochs.pt")
     torch.save(tokenized_data, tokenized_output_path)
 
-    print(f"Tokenized epochs saved at: {tokenized_output_path}")
+    #print(f"Tokenized epochs saved at: {tokenized_output_path}")
 
 
 if __name__ == "__main__":
