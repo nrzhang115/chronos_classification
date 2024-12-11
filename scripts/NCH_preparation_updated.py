@@ -28,6 +28,7 @@ def split_into_epochs(eeg_signal, sampling_rate, epoch_length_s=30):
 
 def extract_labels(annotation_path, file_name, num_epochs):
     annotation_file = os.path.join(annotation_path, file_name.replace('.edf', '.tsv'))
+    print(f"Looking for annotation file: {annotation_file}")
     if not os.path.exists(annotation_file):
         print(f"Annotation file not found for {file_name}. Skipping labels.")
         return None
