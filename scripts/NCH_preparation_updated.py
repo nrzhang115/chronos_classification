@@ -26,11 +26,32 @@ def split_into_epochs(eeg_signal, sampling_rate, epoch_length_s=30):
     ]
     return epochs
 
-def extract_labels(annotation_path, file_name, num_epochs):
-    annotation_file = os.path.join(annotation_path, file_name.replace('.edf', '.tsv'))
-    print(f"Looking for annotation file: {annotation_file}")
+def load_annotation_mapping(annotation_file):
+    """
+    Load the mapping of .edf files to their corresponding .tsv files.
+    """
+    mapping = {}
+    with open(annotation_file, 'r') as f:
+        for line in f:
+            # Split each line to extract .edf and corresponding .tsv file paths
+            line = line.strip()
+            if line:
+                tsv_path = line  # Assume the full path to .tsv is in the file
+                edf_name = os.path.basename(tsv_path).replace('.tsv', '.edf')
+                mapping[edf_name] = tsv_path
+    return mapping
+
+def extract_labels(annotation_mapping, file_name, num_epochs):
+    """
+    Extract sleep stage labels from the corresponding TSV file.
+    """
+    if file_name not in annotation_mapping:
+        print(f"Annotation file not listed for {file_name}. Skipping labels.")
+        return None
+
+    annotation_file = annotation_mapping[file_name]
     if not os.path.exists(annotation_file):
-        print(f"Annotation file not found for {file_name}. Skipping labels.")
+        print(f"Annotation file not found: {annotation_file}. Skipping labels.")
         return None
 
     # Read the TSV file
@@ -40,8 +61,6 @@ def extract_labels(annotation_path, file_name, num_epochs):
 
     # Filter rows for sleep stage annotations
     sleep_stage_data = tsv_data[tsv_data["annotation"].str.contains("Sleep stage", na=False)]
-    print(f"Sleep stage data for {file_name}:")
-    print(sleep_stage_data)  # Debug: Check filtered data
 
     # Map annotations to epochs
     labels = []
@@ -58,8 +77,6 @@ def extract_labels(annotation_path, file_name, num_epochs):
 
         # Append the sleep stage label for each epoch
         labels.extend([sleep_stage] * num_epochs)
-
-    print(f"Extracted labels for {file_name}: {labels[:5]}...")  # Debug: Print first few labels
 
     # Ensure the number of labels matches the number of epochs
     if len(labels) != num_epochs:
@@ -155,23 +172,23 @@ def main():
     parser.add_argument("--select_ch", type=str, default="EEG C4-M1",
                         help="EEG channel to select")
     parser.add_argument("--selected_files", type=str, default="/home/z5298768/chronos_classification/scripts/Selected_Files",
-                    help="Path to text file containing list of selected files.")
-    parser.add_argument("--annotation_path", type=str, default="/home/z5298768/chronos_classification/scripts/Selected_annotations",
-                        help="Path to the directory containing annotations (TSV files).")
+                        help="Path to text file containing list of selected files.")
+    parser.add_argument("--annotation_file", type=str, default="/home/z5298768/chronos_classification/scripts/Selected_annotations",
+                        help="Path to text file containing list of annotation file paths.")
     args = parser.parse_args()
 
     # Load the selected file names
     selected_files = load_selected_files(args.selected_files)
+
+    # Load the mapping of annotation files
+    annotation_mapping = load_annotation_mapping(args.annotation_file)
 
     if len(selected_files) == 0:
         print("Error: No selected files found in the specified file.")
         return
 
     # Process only the selected files
-    final_data_list = process_nch_data(selected_files, args.data_dir, args.select_ch, args.annotation_path)
+    final_data_list = process_nch_data(selected_files, args.data_dir, args.select_ch, annotation_mapping)
 
     # Save as Arrow file once at the end
     save_to_arrow(final_data_list, args.output_dir)
-
-if __name__ == "__main__":
-    main()
