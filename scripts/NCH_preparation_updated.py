@@ -7,6 +7,7 @@ from tqdm.auto import tqdm
 from mne.io import read_raw_edf
 import sleep_study as ss
 import gc
+import pandas as pd
 
 EPOCH_SEC_SIZE = ss.data.EPOCH_SEC_SIZE  # Use the predefined epoch size (30 seconds)
 TARGET_SAMPLING_RATE = ss.info.REFERENCE_FREQ  # Use the predefined target sampling rate (100Hz)
@@ -25,7 +26,27 @@ def split_into_epochs(eeg_signal, sampling_rate, epoch_length_s=30):
     ]
     return epochs
 
-def process_nch_data(selected_files, data_dir, select_ch):
+def extract_labels(annotation_path, file_name, num_epochs):
+    """
+    Extract labels from the corresponding TSV file.
+    """
+    annotation_file = os.path.join(annotation_path, file_name.replace('.edf', '.tsv'))
+    if not os.path.exists(annotation_file):
+        print(f"Annotation file not found for {file_name}. Skipping labels.")
+        return None
+
+    # Read the TSV file
+    tsv_data = pd.read_csv(annotation_file, sep="\t")
+
+    # Extract sleep stage labels and ensure they match the number of epochs
+    labels = tsv_data.get("sleep_stage", []).tolist()
+    if len(labels) != num_epochs:
+        print(f"Mismatch in number of epochs and labels for {file_name}. Skipping labels.")
+        return None
+
+    return labels
+
+def process_nch_data(selected_files, data_dir, select_ch, annotation_path):
     """
     Process only the selected files from the NCH dataset.
     """
@@ -57,10 +78,14 @@ def process_nch_data(selected_files, data_dir, select_ch):
             print(f"Skipping {fname} due to lack of valid data.")
             continue
 
+        # Extract labels from the corresponding TSV file
+        labels = extract_labels(annotation_path, fname, len(epochs))
+
         # Prepare the time series entry
         entry = {
             "eeg_epochs": epochs,  # Save the segmented EEG epochs
             "file_name": fname,  # Keep track of the source file
+            "labels": labels,  # Add extracted labels
         }
         data_list.append(entry)
 
@@ -107,6 +132,8 @@ def main():
                         help="EEG channel to select")
     parser.add_argument("--selected_files", type=str, default="/home/z5298768/chronos_classification/scripts/Selected_Files",
                     help="Path to text file containing list of selected files.")
+    parser.add_argument("--annotation_path", type=str, default="/home/z5298768/chronos_classification/scripts/Selected_annotations",
+                        help="Path to the directory containing annotations (TSV files).")
     args = parser.parse_args()
 
     # Load the selected file names
@@ -117,7 +144,7 @@ def main():
         return
 
     # Process only the selected files
-    final_data_list = process_nch_data(selected_files, args.data_dir, args.select_ch)
+    final_data_list = process_nch_data(selected_files, args.data_dir, args.select_ch, args.annotation_path)
 
     # Save as Arrow file once at the end
     save_to_arrow(final_data_list, args.output_dir)
