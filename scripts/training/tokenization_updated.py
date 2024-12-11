@@ -6,7 +6,6 @@ import numpy as np
 from typing import List
 from chronos import ChronosConfig, ChronosTokenizer
 
-
 class ChronosEpochTokenizer:
     """
     Dataset wrapper for tokenizing each 30-second epoch into 512 tokens.
@@ -20,39 +19,39 @@ class ChronosEpochTokenizer:
         np_dtype=np.float32,
     ) -> None:
         assert os.path.exists(arrow_file_path), f"Arrow file not found: {arrow_file_path}"
-        
+
         # Open the Arrow file using IPC
-        with ipc.open_file(arrow_file_path) as arrow_file:
-            self.dataset = arrow_file.read_all()  # Load all data into memory
-        
+        with pa.memory_map(arrow_file_path, "r") as source:
+            reader = ipc.RecordBatchFileReader(source)
+            record_batch = reader.get_batch(0)
+            self.dataset = record_batch.to_pandas()  # Load data into a DataFrame
+
         self.tokenizer = tokenizer
         self.token_length = token_length
         self.np_dtype = np_dtype
 
-    def preprocess_entry(self, start, target: List[int]) -> list:
+    def preprocess_entry(self, eeg_epochs: List[List[float]], file_name: str) -> List[dict]:
         """
-        Preprocess a single dataset row to tokenize every individual label.
+        Preprocess and tokenize each epoch in eeg_epochs.
         """
-        # Generate 512 tokens for each label in the target
         tokenized_epochs = []
-        for label in target:
-            input_ids, attention_mask = self.tokenize_label(label)
+
+        for epoch in eeg_epochs:
+            input_ids, attention_mask = self.tokenize_epoch(epoch)
             tokenized_epochs.append({
+                "file_name": file_name,
                 "input_ids": input_ids,
                 "attention_mask": attention_mask,
-                "label": label,
             })
 
         return tokenized_epochs
 
-    def tokenize_label(self, label: int) -> tuple:
+    def tokenize_epoch(self, epoch: List[float]) -> tuple:
         """
-        Tokenize a single label into 512 tokens.
+        Tokenize a single epoch into 512 tokens.
         """
-        label_tensor = torch.tensor([label]).unsqueeze(0)  # Shape: (1, 1)
-        input_ids, attention_mask, _ = self.tokenizer.context_input_transform(
-            label_tensor
-        )
+        epoch_tensor = torch.tensor(epoch, dtype=torch.float32).unsqueeze(0)  # Shape: (1, 3000)
+        input_ids, attention_mask, _ = self.tokenizer.context_input_transform(epoch_tensor)
 
         # Ensure tokenization produces the correct number of tokens
         if input_ids.size(1) != self.token_length:
@@ -63,13 +62,12 @@ class ChronosEpochTokenizer:
         return input_ids.squeeze(0), attention_mask.squeeze(0)
 
     def __iter__(self):
-        # Access rows using Arrow Table
-        start_column = self.dataset["start"]
-        target_column = self.dataset["target"]
+        # Iterate over rows in the dataset
+        for _, row in self.dataset.iterrows():
+            file_name = row["file_name"] # Start
+            eeg_epochs = row["eeg_epochs"] # Target
 
-        for start, target in zip(start_column.to_pylist(), target_column.to_pylist()):
-            yield from self.preprocess_entry(start, target)
-
+            yield from self.preprocess_entry(eeg_epochs, file_name)
 
 def main_tokenization():
     # Input and output paths
@@ -82,7 +80,7 @@ def main_tokenization():
     n_tokens = 4096
     tokenizer_class = "MeanScaleUniformBins"
     tokenizer_kwargs = {"low_limit": -15.0, "high_limit": 15.0}
-    
+
     # Required parameters for ChronosConfig
     prediction_length = 0  # Not needed for classification
     n_special_tokens = 2  # Typically PAD and EOS tokens
@@ -129,7 +127,6 @@ def main_tokenization():
     torch.save(tokenized_data, tokenized_output_path)
 
     print(f"Tokenized epochs saved at: {tokenized_output_path}")
-
 
 if __name__ == "__main__":
     main_tokenization()
