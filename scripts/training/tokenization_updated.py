@@ -52,7 +52,10 @@ class ChronosEpochTokenizer:
         """
         epoch_tensor = torch.tensor(epoch, dtype=torch.float32).unsqueeze(0)  # Shape: (1, 3000)
         input_ids, attention_mask, _ = self.tokenizer.context_input_transform(epoch_tensor)
-
+        
+        # Debugging: print the size of input_ids
+        print(f"Tokenized input size: {input_ids.size(1)}")
+        
         # Ensure tokenization produces the correct number of tokens
         if input_ids.size(1) != self.token_length:
             raise ValueError(
@@ -86,12 +89,12 @@ def main_tokenization():
     n_special_tokens = 2  # Typically PAD and EOS tokens
     pad_token_id = 0  # Padding token ID
     eos_token_id = 1  # End-of-sequence token ID
-    use_eos_token = True  # Whether to use EOS tokens
+    use_eos_token = False  # Whether to use EOS tokens
     num_samples = 1  # For stochastic sampling
     temperature = 1.0  # Sampling temperature (not used here)
     top_k = 50  # Top-k sampling (not used here)
     top_p = 1.0  # Top-p sampling (not used here)
-    model_type = "seq2seq"  # Task type
+    model_type = "classification"  # Task type # change from seq2seq to classification
 
     # Initialize tokenizer
     tokenizer = ChronosConfig(
