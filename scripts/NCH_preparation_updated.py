@@ -27,9 +27,6 @@ def split_into_epochs(eeg_signal, sampling_rate, epoch_length_s=30):
     return epochs
 
 def extract_labels(annotation_path, file_name, num_epochs):
-    """
-    Extract sleep stage labels from the corresponding TSV file.
-    """
     annotation_file = os.path.join(annotation_path, file_name.replace('.edf', '.tsv'))
     if not os.path.exists(annotation_file):
         print(f"Annotation file not found for {file_name}. Skipping labels.")
@@ -37,9 +34,13 @@ def extract_labels(annotation_path, file_name, num_epochs):
 
     # Read the TSV file
     tsv_data = pd.read_csv(annotation_file, sep="\t", header=None, names=["start_time", "duration", "annotation"])
-    
+    print(f"Contents of {annotation_file}:")
+    print(tsv_data.head())  # Debug: Print the content of the file
+
     # Filter rows for sleep stage annotations
     sleep_stage_data = tsv_data[tsv_data["annotation"].str.contains("Sleep stage", na=False)]
+    print(f"Sleep stage data for {file_name}:")
+    print(sleep_stage_data)  # Debug: Check filtered data
 
     # Map annotations to epochs
     labels = []
@@ -48,7 +49,7 @@ def extract_labels(annotation_path, file_name, num_epochs):
     for _, row in sleep_stage_data.iterrows():
         start_time = row["start_time"]
         duration = row["duration"]
-        sleep_stage = row["annotation"].replace("Sleep stage ", "")  # Extract the stage (e.g., W, N1)
+        sleep_stage = row["annotation"].replace("Sleep stage ", "")
 
         # Calculate start and end epochs
         start_epoch = int(start_time // epoch_duration)
@@ -57,12 +58,15 @@ def extract_labels(annotation_path, file_name, num_epochs):
         # Append the sleep stage label for each epoch
         labels.extend([sleep_stage] * num_epochs)
 
+    print(f"Extracted labels for {file_name}: {labels[:5]}...")  # Debug: Print first few labels
+
     # Ensure the number of labels matches the number of epochs
     if len(labels) != num_epochs:
         print(f"Mismatch in number of epochs ({num_epochs}) and labels ({len(labels)}) for {file_name}.")
         return None
 
     return labels
+
 
 
 def process_nch_data(selected_files, data_dir, select_ch, annotation_path):
