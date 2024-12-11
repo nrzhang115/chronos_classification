@@ -28,7 +28,7 @@ def split_into_epochs(eeg_signal, sampling_rate, epoch_length_s=30):
 
 def extract_labels(annotation_path, file_name, num_epochs):
     """
-    Extract labels from the corresponding TSV file.
+    Extract sleep stage labels from the corresponding TSV file.
     """
     annotation_file = os.path.join(annotation_path, file_name.replace('.edf', '.tsv'))
     if not os.path.exists(annotation_file):
@@ -36,15 +36,34 @@ def extract_labels(annotation_path, file_name, num_epochs):
         return None
 
     # Read the TSV file
-    tsv_data = pd.read_csv(annotation_file, sep="\t")
+    tsv_data = pd.read_csv(annotation_file, sep="\t", header=None, names=["start_time", "duration", "annotation"])
+    
+    # Filter rows for sleep stage annotations
+    sleep_stage_data = tsv_data[tsv_data["annotation"].str.contains("Sleep stage", na=False)]
 
-    # Extract sleep stage labels and ensure they match the number of epochs
-    labels = tsv_data.get("sleep_stage", []).tolist()
+    # Map annotations to epochs
+    labels = []
+    epoch_duration = 30.0  # Duration of each epoch in seconds
+
+    for _, row in sleep_stage_data.iterrows():
+        start_time = row["start_time"]
+        duration = row["duration"]
+        sleep_stage = row["annotation"].replace("Sleep stage ", "")  # Extract the stage (e.g., W, N1)
+
+        # Calculate start and end epochs
+        start_epoch = int(start_time // epoch_duration)
+        num_epochs = int(duration // epoch_duration)
+
+        # Append the sleep stage label for each epoch
+        labels.extend([sleep_stage] * num_epochs)
+
+    # Ensure the number of labels matches the number of epochs
     if len(labels) != num_epochs:
-        print(f"Mismatch in number of epochs and labels for {file_name}. Skipping labels.")
+        print(f"Mismatch in number of epochs ({num_epochs}) and labels ({len(labels)}) for {file_name}.")
         return None
 
     return labels
+
 
 def process_nch_data(selected_files, data_dir, select_ch, annotation_path):
     """
