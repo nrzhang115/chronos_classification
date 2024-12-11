@@ -1,5 +1,4 @@
 import argparse
-import glob
 import os
 import numpy as np
 from gluonts.dataset.arrow import ArrowWriter
@@ -33,7 +32,6 @@ def load_annotation_mapping(annotation_file):
     mapping = {}
     with open(annotation_file, 'r') as f:
         for line in f:
-            # Split each line to extract .edf and corresponding .tsv file paths
             line = line.strip()
             if line:
                 tsv_path = line  # Assume the full path to .tsv is in the file
@@ -57,7 +55,7 @@ def extract_labels(annotation_mapping, file_name, num_epochs):
     # Read the TSV file
     tsv_data = pd.read_csv(annotation_file, sep="\t", header=None, names=["start_time", "duration", "annotation"])
     print(f"Contents of {annotation_file}:")
-    print(tsv_data.head())  # Debug: Print the content of the file
+    print(tsv_data.head())
 
     # Filter rows for sleep stage annotations
     sleep_stage_data = tsv_data[tsv_data["annotation"].str.contains("Sleep stage", na=False)]
@@ -73,10 +71,10 @@ def extract_labels(annotation_mapping, file_name, num_epochs):
 
         # Calculate start and end epochs
         start_epoch = int(start_time // epoch_duration)
-        num_epochs = int(duration // epoch_duration)
+        num_epochs_for_row = int(duration // epoch_duration)
 
         # Append the sleep stage label for each epoch
-        labels.extend([sleep_stage] * num_epochs)
+        labels.extend([sleep_stage] * num_epochs_for_row)
 
     # Ensure the number of labels matches the number of epochs
     if len(labels) != num_epochs:
@@ -85,9 +83,7 @@ def extract_labels(annotation_mapping, file_name, num_epochs):
 
     return labels
 
-
-
-def process_nch_data(selected_files, data_dir, select_ch, annotation_path):
+def process_nch_data(selected_files, data_dir, select_ch, annotation_mapping):
     """
     Process only the selected files from the NCH dataset.
     """
@@ -120,7 +116,7 @@ def process_nch_data(selected_files, data_dir, select_ch, annotation_path):
             continue
 
         # Extract labels from the corresponding TSV file
-        labels = extract_labels(annotation_path, fname, len(epochs))
+        labels = extract_labels(annotation_mapping, fname, len(epochs))
 
         # Prepare the time series entry
         entry = {
@@ -190,5 +186,12 @@ def main():
     # Process only the selected files
     final_data_list = process_nch_data(selected_files, args.data_dir, args.select_ch, annotation_mapping)
 
+    if not final_data_list:
+        print("No data prepared. Exiting.")
+        return
+
     # Save as Arrow file once at the end
     save_to_arrow(final_data_list, args.output_dir)
+
+if __name__ == "__main__":
+    main()
