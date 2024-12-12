@@ -179,6 +179,7 @@ def load_selected_files(file_path):
         return [line.strip() for line in f if line.strip()]
 
 def main():
+    print("Starting main function...")
     parser = argparse.ArgumentParser()
     parser.add_argument("--data_dir", type=str, default="/srv/scratch/speechdata/sleep_data/NCH/nch",
                         help="Directory with PSG files.")
