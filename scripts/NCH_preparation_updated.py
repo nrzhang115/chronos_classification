@@ -68,11 +68,21 @@ def extract_labels(annotation_mapping, file_name, num_epochs):
     # Debug: Print the file being processed
     print(f"Processing annotation file: {annotation_file}")
 
-    # Read the TSV file
-    tsv_data = pd.read_csv(annotation_file, sep="\t", header=None, names=["start_time", "duration", "annotation"])
-    
+    # Read the TSV file, skipping the first row
+    tsv_data = pd.read_csv(
+        annotation_file,
+        sep="\t",
+        header=0,  # Use the first row as headers
+        names=["start_time", "duration", "annotation"],  # Define column names
+        skiprows=1,  # Skip the header row already in the file
+    )
+
     # Debug: Show the first few rows of the TSV file
     print(f"Contents of {annotation_file}:\n{tsv_data.head()}")
+
+    # Ensure 'start_time' and 'duration' are numeric
+    tsv_data["start_time"] = pd.to_numeric(tsv_data["start_time"], errors="coerce")
+    tsv_data["duration"] = pd.to_numeric(tsv_data["duration"], errors="coerce")
 
     # Filter rows for sleep stage annotations
     sleep_stage_data = tsv_data[tsv_data["annotation"].str.contains("Sleep stage", na=False)]
@@ -89,6 +99,10 @@ def extract_labels(annotation_mapping, file_name, num_epochs):
         duration = row["duration"]
         sleep_stage = row["annotation"].replace("Sleep stage ", "").strip()
 
+        # Skip rows with invalid numeric values
+        if pd.isna(start_time) or pd.isna(duration):
+            continue
+
         # Calculate start and end epochs
         start_epoch = int(start_time // epoch_duration)
         num_epochs_for_row = int(duration // epoch_duration)
@@ -99,7 +113,13 @@ def extract_labels(annotation_mapping, file_name, num_epochs):
     # Debug: Print the extracted labels
     print(f"Extracted Labels for {file_name}: {labels[:10]}...")  # Show first 10 labels
 
-    # Ensure the number of labels matches the number
+    # Ensure the number of labels matches the number of epochs
+    if len(labels) != num_epochs:
+        print(f"Mismatch in number of epochs ({num_epochs}) and labels ({len(labels)}) for {file_name}.")
+        return None
+
+    return labels
+
 
 
 def process_nch_data(selected_files, data_dir, select_ch, annotation_mapping):
