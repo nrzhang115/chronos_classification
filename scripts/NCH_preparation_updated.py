@@ -38,7 +38,7 @@ def load_annotation_mapping(annotation_file, data_dir):
     print(f"Loading annotations from {annotation_file}")
     with open(annotation_file, 'r') as f:
         for line in f:
-            print(f"Annotation file line: {line.strip()}")
+            print(f"Raw line from file: {line.strip()}")  # Debug: Print raw line
             line = line.strip()
             if line:
                 # Construct full path to .tsv file in the dataset directory
