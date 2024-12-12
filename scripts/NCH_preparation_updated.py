@@ -29,9 +29,16 @@ def load_annotation_mapping(annotation_file, data_dir):
     """
     Load the mapping of .edf files to their corresponding .tsv files.
     """
+        # Check if the annotation file exists
+    if not os.path.exists(annotation_file):
+        print(f"Annotation file not found: {annotation_file}")
+        return {}
+    
     mapping = {}
+    print(f"Loading annotations from {annotation_file}")
     with open(annotation_file, 'r') as f:
         for line in f:
+            print(f"Annotation file line: {line.strip()}")
             line = line.strip()
             if line:
                 # Construct full path to .tsv file in the dataset directory
@@ -189,7 +196,9 @@ def main():
     selected_files = load_selected_files(args.selected_files)
 
     # Load the mapping of annotation files
+    print("Calling load_annotation_mapping...")
     annotation_mapping = load_annotation_mapping(args.annotation_file, args.data_dir)
+
 
     if len(selected_files) == 0:
         print("Error: No selected files found in the specified file.")
