@@ -54,7 +54,7 @@ def load_annotation_mapping(annotation_file, data_dir):
 
 def extract_labels(annotation_mapping, file_name, num_epochs):
     """
-    Extract sleep stage labels from the corresponding TSV file.
+    Extract sleep stage labels from the corresponding TSV file and pad missing epochs.
     """
     if file_name not in annotation_mapping:
         print(f"Annotation file not listed for {file_name}. Skipping labels.")
@@ -77,9 +77,6 @@ def extract_labels(annotation_mapping, file_name, num_epochs):
         skiprows=1,  # Skip the header row already in the file
     )
 
-    # Debug: Show the first few rows of the TSV file
-    print(f"Contents of {annotation_file}:\n{tsv_data.head()}")
-
     # Ensure 'start_time' and 'duration' are numeric
     tsv_data["start_time"] = pd.to_numeric(tsv_data["start_time"], errors="coerce")
     tsv_data["duration"] = pd.to_numeric(tsv_data["duration"], errors="coerce")
@@ -90,8 +87,8 @@ def extract_labels(annotation_mapping, file_name, num_epochs):
     # Debug: Show filtered rows
     print(f"Filtered Sleep Stages from {annotation_file}:\n{sleep_stage_data.head()}")
 
-    # Map annotations to epochs
-    labels = []
+    # Initialize all epochs with 'unknown'
+    labels = ['unknown'] * num_epochs
     epoch_duration = 30.0  # Duration of each epoch in seconds
 
     for _, row in sleep_stage_data.iterrows():
@@ -107,16 +104,14 @@ def extract_labels(annotation_mapping, file_name, num_epochs):
         start_epoch = int(start_time // epoch_duration)
         num_epochs_for_row = int(duration // epoch_duration)
 
-        # Append the sleep stage label for each epoch
-        labels.extend([sleep_stage] * num_epochs_for_row)
+        # Assign the sleep stage to the corresponding epochs
+        for i in range(num_epochs_for_row):
+            current_epoch = start_epoch + i
+            if current_epoch < num_epochs:  # Ensure we don't exceed the total number of epochs
+                labels[current_epoch] = sleep_stage
 
-    # Debug: Print the extracted labels
-    print(f"Extracted Labels for {file_name}: {labels[:10]}...")  # Show first 10 labels
-
-    # Ensure the number of labels matches the number of epochs
-    if len(labels) != num_epochs:
-        print(f"Mismatch in number of epochs ({num_epochs}) and labels ({len(labels)}) for {file_name}.")
-        return None
+    # Debug: Print the first few labels
+    print(f"Extracted and padded labels for {file_name}: {labels[:10]}...")  # Show first 10 labels
 
     return labels
 
