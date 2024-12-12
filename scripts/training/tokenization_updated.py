@@ -6,9 +6,10 @@ import numpy as np
 from typing import List
 from chronos import ChronosConfig, ChronosTokenizer
 
+
 class ChronosEpochTokenizer:
     """
-    Dataset wrapper for tokenizing each 30-second epoch into 512 tokens.
+    Dataset wrapper for tokenizing each 30-second epoch into 512 tokens and including labels.
     """
 
     def __init__(
@@ -30,18 +31,19 @@ class ChronosEpochTokenizer:
         self.token_length = token_length
         self.np_dtype = np_dtype
 
-    def preprocess_entry(self, eeg_epochs: List[List[float]], file_name: str) -> List[dict]:
+    def preprocess_entry(self, eeg_epochs: List[List[float]], labels: List[str], file_name: str) -> List[dict]:
         """
-        Preprocess and tokenize each epoch in eeg_epochs.
+        Preprocess and tokenize each epoch in eeg_epochs, including labels.
         """
         tokenized_epochs = []
 
-        for epoch in eeg_epochs:
+        for epoch, label in zip(eeg_epochs, labels):
             input_ids, attention_mask = self.tokenize_epoch(epoch)
             tokenized_epochs.append({
                 "file_name": file_name,
                 "input_ids": input_ids,
                 "attention_mask": attention_mask,
+                "label": label,  # Add corresponding label
             })
 
         return tokenized_epochs
@@ -52,10 +54,7 @@ class ChronosEpochTokenizer:
         """
         epoch_tensor = torch.tensor(epoch, dtype=torch.float32).unsqueeze(0)  # Shape: (1, 3000)
         input_ids, attention_mask, _ = self.tokenizer.context_input_transform(epoch_tensor)
-        
-        # Debugging: print the size of input_ids
-        print(f"Tokenized input size: {input_ids.size(1)}")
-        
+
         # Ensure tokenization produces the correct number of tokens
         if input_ids.size(1) != self.token_length:
             raise ValueError(
@@ -67,10 +66,17 @@ class ChronosEpochTokenizer:
     def __iter__(self):
         # Iterate over rows in the dataset
         for _, row in self.dataset.iterrows():
-            file_name = row["file_name"] # Start
-            eeg_epochs = row["eeg_epochs"] # Target
+            file_name = row["file_name"]  # Source file name
+            eeg_epochs = row["eeg_epochs"]  # EEG epochs
+            labels = row.get("labels", ["unknown"] * len(eeg_epochs))  # Labels or default to "unknown"
 
-            yield from self.preprocess_entry(eeg_epochs, file_name)
+            # Ensure the number of labels matches the number of epochs
+            if len(labels) != len(eeg_epochs):
+                print(f"Warning: Mismatch in number of labels and epochs for {file_name}. Padding labels.")
+                labels = labels[:len(eeg_epochs)] + ["unknown"] * (len(eeg_epochs) - len(labels))
+
+            yield from self.preprocess_entry(eeg_epochs, labels, file_name)
+
 
 def main_tokenization():
     # Input and output paths
@@ -94,7 +100,7 @@ def main_tokenization():
     temperature = 1.0  # Sampling temperature (not used here)
     top_k = 50  # Top-k sampling (not used here)
     top_p = 1.0  # Top-p sampling (not used here)
-    model_type = "classification"  # Task type # change from seq2seq to classification
+    model_type = "classification"  # Task type
 
     # Initialize tokenizer
     tokenizer = ChronosConfig(
@@ -111,7 +117,7 @@ def main_tokenization():
         top_k=top_k,
         top_p=top_p,
         context_length=context_length,  # Correctly use context_length
-        model_type=model_type,          # Set to "seq2seq"
+        model_type=model_type,          # Set to "classification"
     ).create_tokenizer()
 
     # Initialize dataset
@@ -130,6 +136,7 @@ def main_tokenization():
     torch.save(tokenized_data, tokenized_output_path)
 
     print(f"Tokenized epochs saved at: {tokenized_output_path}")
+
 
 if __name__ == "__main__":
     main_tokenization()
