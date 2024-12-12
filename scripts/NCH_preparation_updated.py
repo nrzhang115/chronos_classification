@@ -30,14 +30,16 @@ def load_annotation_mapping(annotation_file):
     Load the mapping of .edf files to their corresponding .tsv files.
     """
     mapping = {}
+    base_dir = os.path.dirname(annotation_file)  # Get directory of the annotation file
     with open(annotation_file, 'r') as f:
         for line in f:
             line = line.strip()
             if line:
-                tsv_path = line  # Assume the full path to .tsv is in the file
+                tsv_path = os.path.join(base_dir, line)  # Prepend directory to filename
                 edf_name = os.path.basename(tsv_path).replace('.tsv', '.edf')
                 mapping[edf_name] = tsv_path
     return mapping
+
 
 def extract_labels(annotation_mapping, file_name, num_epochs):
     """
