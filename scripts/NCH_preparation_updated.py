@@ -58,13 +58,20 @@ def extract_labels(annotation_mapping, file_name, num_epochs):
         print(f"Annotation file not found: {annotation_file}. Skipping labels.")
         return None
 
+    # Debug: Print the file being processed
+    print(f"Processing annotation file: {annotation_file}")
+
     # Read the TSV file
     tsv_data = pd.read_csv(annotation_file, sep="\t", header=None, names=["start_time", "duration", "annotation"])
-    print(f"Contents of {annotation_file}:")
-    print(tsv_data.head())
+    
+    # Debug: Show the first few rows of the TSV file
+    print(f"Contents of {annotation_file}:\n{tsv_data.head()}")
 
     # Filter rows for sleep stage annotations
     sleep_stage_data = tsv_data[tsv_data["annotation"].str.contains("Sleep stage", na=False)]
+
+    # Debug: Show filtered rows
+    print(f"Filtered Sleep Stages from {annotation_file}:\n{sleep_stage_data.head()}")
 
     # Map annotations to epochs
     labels = []
@@ -73,7 +80,7 @@ def extract_labels(annotation_mapping, file_name, num_epochs):
     for _, row in sleep_stage_data.iterrows():
         start_time = row["start_time"]
         duration = row["duration"]
-        sleep_stage = row["annotation"].replace("Sleep stage ", "")
+        sleep_stage = row["annotation"].replace("Sleep stage ", "").strip()
 
         # Calculate start and end epochs
         start_epoch = int(start_time // epoch_duration)
@@ -82,12 +89,11 @@ def extract_labels(annotation_mapping, file_name, num_epochs):
         # Append the sleep stage label for each epoch
         labels.extend([sleep_stage] * num_epochs_for_row)
 
-    # Ensure the number of labels matches the number of epochs
-    if len(labels) != num_epochs:
-        print(f"Mismatch in number of epochs ({num_epochs}) and labels ({len(labels)}) for {file_name}.")
-        return None
+    # Debug: Print the extracted labels
+    print(f"Extracted Labels for {file_name}: {labels[:10]}...")  # Show first 10 labels
 
-    return labels
+    # Ensure the number of labels matches the number
+
 
 def process_nch_data(selected_files, data_dir, select_ch, annotation_mapping):
     """
