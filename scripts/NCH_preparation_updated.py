@@ -25,20 +25,24 @@ def split_into_epochs(eeg_signal, sampling_rate, epoch_length_s=30):
     ]
     return epochs
 
-def load_annotation_mapping(annotation_file):
+def load_annotation_mapping(annotation_file, data_dir):
     """
     Load the mapping of .edf files to their corresponding .tsv files.
     """
     mapping = {}
-    base_dir = os.path.dirname(annotation_file)  # Get directory of the annotation file
     with open(annotation_file, 'r') as f:
         for line in f:
             line = line.strip()
             if line:
-                tsv_path = os.path.join(base_dir, line)  # Prepend directory to filename
+                # Construct full path to .tsv file in the dataset directory
+                tsv_path = os.path.join(data_dir, line)
                 edf_name = os.path.basename(tsv_path).replace('.tsv', '.edf')
                 mapping[edf_name] = tsv_path
+    print("Annotation Mapping Debug:")
+    for edf, tsv in mapping.items():
+        print(f"{edf} -> {tsv} (Exists: {os.path.exists(tsv)})")
     return mapping
+
 
 
 def extract_labels(annotation_mapping, file_name, num_epochs):
@@ -179,7 +183,7 @@ def main():
     selected_files = load_selected_files(args.selected_files)
 
     # Load the mapping of annotation files
-    annotation_mapping = load_annotation_mapping(args.annotation_file)
+    annotation_mapping = load_annotation_mapping(args.annotation_file, args.data_dir)
 
     if len(selected_files) == 0:
         print("Error: No selected files found in the specified file.")
