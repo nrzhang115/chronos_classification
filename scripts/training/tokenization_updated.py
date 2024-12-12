@@ -5,7 +5,7 @@ import torch
 import numpy as np
 from typing import List
 from chronos import ChronosConfig, ChronosTokenizer
-
+from tqdm import tqdm
 
 class ChronosEpochTokenizer:
     """
@@ -127,9 +127,10 @@ def main_tokenization():
         token_length=context_length,  # Use context_length here as well
     )
 
-    # Tokenize and save
+
+    # Tokenize and save with a progress bar
     tokenized_data = []
-    for item in dataset:
+    for item in tqdm(dataset, desc="Tokenizing epochs", unit="epoch"):
         tokenized_data.append(item)
 
     tokenized_output_path = os.path.join(output_dir, "tokenized_epochs.pt")
