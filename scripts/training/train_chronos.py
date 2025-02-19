@@ -28,12 +28,26 @@ class SleepStageDataset(Dataset):
     def __init__(self, tokenized_file_path: str):
         logger.info("Loading tokenized data from %s", tokenized_file_path)
         self.data = torch.load(tokenized_file_path)
+        # Map labels to integers
+        self.label_mapping = {
+            "W": 0,
+            "N1": 1,
+            "N2": 2,
+            "N3": 3,
+            "R": 4,
+            "unknown": 5
+        }
 
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, idx):
-        return self.data[idx]
+        item = self.data[idx]
+        # Convert string label to integer
+        if isinstance(item["label"], str):
+            item["label"] = self.label_mapping.get(item["label"], 5)  # Default to 'unknown' if missing
+        return item
+
 
 # Function to plot confusion matrix
 def plot_confusion_matrix(y_true, y_pred, labels, output_dir):
@@ -72,6 +86,11 @@ def main(
     # Load tokenized dataset
     tokenized_data_path = os.path.join(tokenized_data_dir, "tokenized_epochs.pt")
     train_dataset = SleepStageDataset(tokenized_data_path)
+    
+    # Validate label format after loading the dataset
+    sample_item = train_dataset[0]
+    print(f"Sample input_ids shape: {sample_item['input_ids'].shape}")
+    print(f"Sample label (should be integer): {sample_item['label']} ({type(sample_item['label'])})")
 
     logger.info("Loading model %s for sleep stage classification", model_id)
 
@@ -92,7 +111,7 @@ def main(
         gradient_accumulation_steps=gradient_accumulation_steps,
         report_to=["tensorboard"],
         remove_unused_columns=False,
-        evaluation_strategy="epoch",
+        eval_strategy="epoch",
     )
 
     # Compute metrics function
@@ -105,7 +124,9 @@ def main(
         # Plot and save confusion matrix
         plot_confusion_matrix(labels, preds, ["W", "N1", "N2", "N3", "R", "unknown"], output_dir)
         return {"accuracy": cm_report['accuracy']}
-
+    
+    
+    
     # Trainer setup
     trainer = Trainer(
         model=model,
