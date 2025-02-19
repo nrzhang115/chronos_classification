@@ -153,11 +153,15 @@ def main(
     # Compute metrics function
     def compute_metrics(eval_pred):
         predictions, labels = eval_pred
-        preds = predictions.argmax(axis=1)
+        # Unpack logits from the tuple
+        logits = predictions[0] if isinstance(predictions, tuple) else predictions
+        preds = logits.argmax(axis=1)
+
+        # Generate classification report
         cm_report = classification_report(labels, preds, output_dict=True)
         logger.info("Classification Report:\n%s", classification_report(labels, preds))
 
-        # Plot confusion matrix
+        # Plot and save confusion matrix
         plot_confusion_matrix(labels, preds, ["W", "N1", "N2", "N3", "R", "unknown"], output_dir)
         return {
             "accuracy": cm_report['accuracy'],
@@ -165,6 +169,7 @@ def main(
             "recall": cm_report['weighted avg']['recall'],
             "f1": cm_report['weighted avg']['f1-score']
         }
+
     
     
     
