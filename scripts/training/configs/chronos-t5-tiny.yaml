@@ -32,5 +32,5 @@ lr_scheduler_type: cosine # Change from linear
 warmup_ratio: 0.1 # 0.0
 dataloader_num_workers: 1
 max_missing_prop: 0.9
-use_eos_token: false # Change from true
+use_eos_token: true
 evaluation_strategy: epoch
