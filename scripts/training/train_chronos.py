@@ -61,8 +61,8 @@ class SleepStageDataset(Dataset):
 
         # Ensure fields are returned as tensors
         return {
-            "input_ids": torch.tensor(item["input_ids"], dtype=torch.long),
-            "attention_mask": torch.tensor(item["attention_mask"], dtype=torch.long),
+            "input_ids": item["input_ids"].clone().detach().long(),
+            "attention_mask": item["attention_mask"].clone().detach().long(),
             "labels": torch.tensor(item["label"], dtype=torch.long)
         }
 
@@ -109,7 +109,7 @@ def main(
     # Validate label format after loading the dataset
     sample_item = train_dataset[0]
     print(f"Sample input_ids shape: {sample_item['input_ids'].shape}")
-    print(f"Sample label (should be integer): {sample_item['label']} ({type(sample_item['label'])})")
+    print(f"Sample label (should be integer): {sample_item['labels']} ({type(sample_item['labels'])})")
     print(f"Last token in sequence: {sample_item['input_ids'][-1].item()} (should be 1 for EOS)")
     print(f"Final sequence length: {len(sample_item['input_ids'])}")  # Should be 512
 
