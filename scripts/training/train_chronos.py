@@ -31,19 +31,10 @@ class SleepStageDataset(Dataset):
         logger.info("Loading tokenized data from %s", tokenized_file_path)
         self.data = torch.load(tokenized_file_path)
         
-        self.data = [item for item in self.data if item['label'] != 5]  # Filtering integer label 5
-        logger.info(f"Class distribution after filtering 'unknown': {len(self.data)} samples remaining.")
+        # self.data = [item for item in self.data if item['label'] != 5]  # Filtering integer label 5
+        # logger.info(f"Class distribution after filtering 'unknown': {len(self.data)} samples remaining.")
         
         
-
-        # ✅ Sanity check: Ensure all labels are within the expected range [0-4]
-        label_counts = Counter([item["label"].item() if isinstance(item["label"], torch.Tensor) else item["label"] for item in self.data])
-        logger.info(f"Final label distribution (after filtering): {label_counts}")
-
-        # 🚨 Check for invalid labels
-        invalid_labels = [label for label in label_counts if label >= 5 or label < 0]
-        if invalid_labels:
-            raise ValueError(f" Found invalid labels outside expected range [0-4]: {invalid_labels}")
 
         self.eos_token_id = 1  # Assuming EOS token ID is 1
 
@@ -54,7 +45,7 @@ class SleepStageDataset(Dataset):
             "N2": 2,
             "N3": 3,
             "R": 4,
-            # "unknown": 5
+            "unknown": 5
         }
 
     def __len__(self):
@@ -63,13 +54,13 @@ class SleepStageDataset(Dataset):
     def __getitem__(self, idx):
         item = self.data[idx]
 
-        # # Convert string label to integer
-        # if isinstance(item["label"], str):
-        #     item["label"] = self.label_mapping.get(item["label"], 5)
+        # Convert string label to integer
         if isinstance(item["label"], str):
-            if item["label"] not in self.label_mapping:
-                raise ValueError(f"Invalid label '{item['label']}' encountered in dataset.")
-            item["label"] = self.label_mapping[item["label"]]
+            item["label"] = self.label_mapping.get(item["label"], 5)
+        # if isinstance(item["label"], str):
+        #     if item["label"] not in self.label_mapping:
+        #         raise ValueError(f"Invalid label '{item['label']}' encountered in dataset.")
+        #     item["label"] = self.label_mapping[item["label"]]
 
 
         # Truncate to 511 tokens if necessary
@@ -109,7 +100,7 @@ def main(
     output_dir: str = "/srv/scratch/z5298768/chronos_classification/t5_tiny_output",
     model_id: str = "google/t5-efficient-tiny",
     n_tokens: int = 4096,                # Vocabulary size from Chronos tokenizer
-    num_labels: int = 5,                 # Sleep stage classes: W, N1, N2, N3, R
+    num_labels: int = 6,                 # Sleep stage classes: W, N1, N2, N3, R, unknown
     pad_token_id: int = 0,
     eos_token_id: int = 1,
     per_device_train_batch_size: int = 32,
@@ -186,7 +177,7 @@ def main(
         logger.info("Classification Report:\n%s", classification_report(labels, preds))
 
         # Plot and save confusion matrix
-        plot_confusion_matrix(labels, preds, ["W", "N1", "N2", "N3", "R"], output_dir)
+        plot_confusion_matrix(labels, preds, ["W", "N1", "N2", "N3", "R", "Unknown"], output_dir)
         return {
             "accuracy": cm_report['accuracy'],
             "precision": cm_report['weighted avg']['precision'],
