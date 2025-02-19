@@ -16,7 +16,7 @@ from transformers import (
 )
 import typer
 from sklearn.model_selection import train_test_split
-
+from collections import Counter
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -34,6 +34,17 @@ class SleepStageDataset(Dataset):
         self.data = [item for item in self.data if item['label'] != 5]  # Filtering integer label 5
         logger.info(f"Class distribution after filtering 'unknown': {len(self.data)} samples remaining.")
         
+        
+
+        # ✅ Sanity check: Ensure all labels are within the expected range [0-4]
+        label_counts = Counter([item["label"].item() if isinstance(item["label"], torch.Tensor) else item["label"] for item in self.data])
+        logger.info(f"Final label distribution (after filtering): {label_counts}")
+
+        # 🚨 Check for invalid labels
+        invalid_labels = [label for label in label_counts if label >= 5 or label < 0]
+        if invalid_labels:
+            raise ValueError(f" Found invalid labels outside expected range [0-4]: {invalid_labels}")
+
         self.eos_token_id = 1  # Assuming EOS token ID is 1
 
         # Label mapping (if needed)
@@ -52,9 +63,14 @@ class SleepStageDataset(Dataset):
     def __getitem__(self, idx):
         item = self.data[idx]
 
-        # Convert string label to integer
+        # # Convert string label to integer
+        # if isinstance(item["label"], str):
+        #     item["label"] = self.label_mapping.get(item["label"], 5)
         if isinstance(item["label"], str):
-            item["label"] = self.label_mapping.get(item["label"], 5)
+            if item["label"] not in self.label_mapping:
+                raise ValueError(f"Invalid label '{item['label']}' encountered in dataset.")
+            item["label"] = self.label_mapping[item["label"]]
+
 
         # Truncate to 511 tokens if necessary
         if len(item["input_ids"]) >= 512:
