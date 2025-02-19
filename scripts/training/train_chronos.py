@@ -36,7 +36,7 @@ class SleepStageDataset(Dataset):
         
         
 
-        self.eos_token_id = 4095  # Assuming EOS token ID is 4095
+        self.eos_token_id = 1  # Assuming EOS token ID is 1
 
         # Label mapping (if needed)
         self.label_mapping = {
@@ -100,7 +100,7 @@ def main(
     n_tokens: int = 4096,                # Vocabulary size from Chronos tokenizer
     num_labels: int = 6,                 # Sleep stage classes: W, N1, N2, N3, R, unknown
     pad_token_id: int = 0,
-    eos_token_id: int = 4095,
+    eos_token_id: int = 1,
     per_device_train_batch_size: int = 32,
     learning_rate: float = 1e-3,
     max_steps: int = 200_000,
