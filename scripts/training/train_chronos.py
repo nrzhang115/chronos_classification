@@ -28,7 +28,9 @@ class SleepStageDataset(Dataset):
     def __init__(self, tokenized_file_path: str):
         logger.info("Loading tokenized data from %s", tokenized_file_path)
         self.data = torch.load(tokenized_file_path)
-        # Map labels to integers
+        self.eos_token_id = 1  # Assuming EOS token ID is 1
+
+        # Label mapping (if needed)
         self.label_mapping = {
             "W": 0,
             "N1": 1,
@@ -43,10 +45,27 @@ class SleepStageDataset(Dataset):
 
     def __getitem__(self, idx):
         item = self.data[idx]
+
         # Convert string label to integer
         if isinstance(item["label"], str):
-            item["label"] = self.label_mapping.get(item["label"], 5)  # Default to 'unknown' if missing
-        return item
+            item["label"] = self.label_mapping.get(item["label"], 5)
+
+        # Truncate to 511 tokens if necessary
+        if len(item["input_ids"]) >= 512:
+            item["input_ids"] = item["input_ids"][:511]
+            item["attention_mask"] = item["attention_mask"][:511]
+
+        # Append EOS token
+        item["input_ids"] = torch.cat([item["input_ids"], torch.tensor([self.eos_token_id])])
+        item["attention_mask"] = torch.cat([item["attention_mask"], torch.tensor([1])])
+
+        # Ensure fields are returned as tensors
+        return {
+            "input_ids": torch.tensor(item["input_ids"], dtype=torch.long),
+            "attention_mask": torch.tensor(item["attention_mask"], dtype=torch.long),
+            "labels": torch.tensor(item["label"], dtype=torch.long)
+        }
+
 
 
 # Function to plot confusion matrix
@@ -91,6 +110,8 @@ def main(
     sample_item = train_dataset[0]
     print(f"Sample input_ids shape: {sample_item['input_ids'].shape}")
     print(f"Sample label (should be integer): {sample_item['label']} ({type(sample_item['label'])})")
+    print(f"Last token in sequence: {sample_item['input_ids'][-1].item()} (should be 1 for EOS)")
+    print(f"Final sequence length: {len(sample_item['input_ids'])}")  # Should be 512
 
     logger.info("Loading model %s for sleep stage classification", model_id)
 
@@ -121,9 +142,14 @@ def main(
         cm_report = classification_report(labels, preds, output_dict=True)
         logger.info("Classification Report:\n%s", classification_report(labels, preds))
 
-        # Plot and save confusion matrix
+        # Plot confusion matrix
         plot_confusion_matrix(labels, preds, ["W", "N1", "N2", "N3", "R", "unknown"], output_dir)
-        return {"accuracy": cm_report['accuracy']}
+        return {
+            "accuracy": cm_report['accuracy'],
+            "precision": cm_report['weighted avg']['precision'],
+            "recall": cm_report['weighted avg']['recall'],
+            "f1": cm_report['weighted avg']['f1-score']
+        }
     
     
     

@@ -95,7 +95,7 @@ def main_tokenization():
     n_special_tokens = 2  # Typically PAD and EOS tokens
     pad_token_id = 0  # Padding token ID
     eos_token_id = 1  # End-of-sequence token ID
-    use_eos_token = True  # Whether to use EOS tokens
+    use_eos_token = False  # Whether to use EOS tokens
     num_samples = 1  # For stochastic sampling
     temperature = 1.0  # Sampling temperature (not used here)
     top_k = 50  # Top-k sampling (not used here)
