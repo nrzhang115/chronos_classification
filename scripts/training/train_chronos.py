@@ -17,6 +17,7 @@ from transformers import (
 import typer
 from sklearn.model_selection import train_test_split
 
+
 # Initialize logger
 logger = logging.getLogger(__name__)
 logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO)
@@ -30,8 +31,8 @@ class SleepStageDataset(Dataset):
         logger.info("Loading tokenized data from %s", tokenized_file_path)
         self.data = torch.load(tokenized_file_path)
         
-        self.data = [item for item in self.data if item['label'] != 'unknown']
-        logger.info(f"Class distribution after filtering: {len(self.data)} samples remaining.")
+        self.data = [item for item in self.data if item['label'] != 5]  # Filtering integer label 5
+        logger.info(f"Class distribution after filtering 'unknown': {len(self.data)} samples remaining.")
         
         self.eos_token_id = 1  # Assuming EOS token ID is 1
 
@@ -51,9 +52,9 @@ class SleepStageDataset(Dataset):
     def __getitem__(self, idx):
         item = self.data[idx]
 
-        # Convert string label to integer
-        if isinstance(item["label"], str):
-            item["label"] = self.label_mapping.get(item["label"], 5)
+        # # Convert string label to integer
+        # if isinstance(item["label"], str):
+        #     item["label"] = self.label_mapping.get(item["label"], 5)
 
         # Truncate to 511 tokens if necessary
         if len(item["input_ids"]) >= 512:
