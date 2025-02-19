@@ -15,6 +15,7 @@ from transformers import (
     set_seed,
 )
 import typer
+from sklearn.model_selection import train_test_split
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -102,10 +103,24 @@ def main(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Load tokenized dataset
-    tokenized_data_path = os.path.join(tokenized_data_dir, "tokenized_epochs.pt")
-    train_dataset = SleepStageDataset(tokenized_data_path)
+    # # Load tokenized dataset
+    # tokenized_data_path = os.path.join(tokenized_data_dir, "tokenized_epochs.pt")
+    # train_dataset = SleepStageDataset(tokenized_data_path)
     
+
+    # Load the full dataset
+    tokenized_data_path = os.path.join(tokenized_data_dir, "tokenized_epochs.pt")
+    full_dataset = SleepStageDataset(tokenized_data_path)
+
+    # Split: 80% training, 20% validation
+    train_size = int(0.8 * len(full_dataset))
+    val_size = len(full_dataset) - train_size
+    train_dataset, val_dataset = torch.utils.data.random_split(full_dataset, [train_size, val_size])
+
+    # Sanity check
+    logger.info(f"Training samples: {len(train_dataset)}")
+    logger.info(f"Validation samples: {len(val_dataset)}")
+
     # Validate label format after loading the dataset
     sample_item = train_dataset[0]
     print(f"Sample input_ids shape: {sample_item['input_ids'].shape}")
@@ -158,6 +173,7 @@ def main(
         model=model,
         args=training_args,
         train_dataset=train_dataset,
+        eval_dataset=val_dataset,
         compute_metrics=compute_metrics
     )
 
