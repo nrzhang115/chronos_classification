@@ -29,6 +29,10 @@ class SleepStageDataset(Dataset):
     def __init__(self, tokenized_file_path: str):
         logger.info("Loading tokenized data from %s", tokenized_file_path)
         self.data = torch.load(tokenized_file_path)
+        
+        self.data = [item for item in self.data if item['label'] != 'unknown']
+        logger.info(f"Class distribution after filtering: {len(self.data)} samples remaining.")
+        
         self.eos_token_id = 1  # Assuming EOS token ID is 1
 
         # Label mapping (if needed)
@@ -38,7 +42,7 @@ class SleepStageDataset(Dataset):
             "N2": 2,
             "N3": 3,
             "R": 4,
-            "unknown": 5
+            # "unknown": 5
         }
 
     def __len__(self):
@@ -85,7 +89,7 @@ def main(
     output_dir: str = "/srv/scratch/z5298768/chronos_classification/t5_tiny_output",
     model_id: str = "google/t5-efficient-tiny",
     n_tokens: int = 4096,                # Vocabulary size from Chronos tokenizer
-    num_labels: int = 6,                 # Sleep stage classes: W, N1, N2, N3, R, unknown
+    num_labels: int = 5,                 # Sleep stage classes: W, N1, N2, N3, R
     pad_token_id: int = 0,
     eos_token_id: int = 1,
     per_device_train_batch_size: int = 32,
@@ -162,7 +166,7 @@ def main(
         logger.info("Classification Report:\n%s", classification_report(labels, preds))
 
         # Plot and save confusion matrix
-        plot_confusion_matrix(labels, preds, ["W", "N1", "N2", "N3", "R", "unknown"], output_dir)
+        plot_confusion_matrix(labels, preds, ["W", "N1", "N2", "N3", "R"], output_dir)
         return {
             "accuracy": cm_report['accuracy'],
             "precision": cm_report['weighted avg']['precision'],
