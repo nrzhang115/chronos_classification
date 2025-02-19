@@ -36,7 +36,7 @@ class SleepStageDataset(Dataset):
         
         
 
-        self.eos_token_id = 1  # Assuming EOS token ID is 1
+        self.eos_token_id = 4095  # Assuming EOS token ID is 4095
 
         # Label mapping (if needed)
         self.label_mapping = {
@@ -71,9 +71,7 @@ class SleepStageDataset(Dataset):
         # Append EOS token
         item["input_ids"] = torch.cat([item["input_ids"], torch.tensor([self.eos_token_id])])
         item["attention_mask"] = torch.cat([item["attention_mask"], torch.tensor([1])])
-        # Sanity Check
-        if idx < 5:  # Just for first few samples
-            logger.info(f"Sample {idx}: Label (int) = {item['label']}, Type = {type(item['label'])}")
+        
 
         # Ensure fields are returned as tensors
         return {
@@ -102,7 +100,7 @@ def main(
     n_tokens: int = 4096,                # Vocabulary size from Chronos tokenizer
     num_labels: int = 6,                 # Sleep stage classes: W, N1, N2, N3, R, unknown
     pad_token_id: int = 0,
-    eos_token_id: int = 1,
+    eos_token_id: int = 4095,
     per_device_train_batch_size: int = 32,
     learning_rate: float = 1e-3,
     max_steps: int = 200_000,
