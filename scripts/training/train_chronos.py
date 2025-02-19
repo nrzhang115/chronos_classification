@@ -52,9 +52,9 @@ class SleepStageDataset(Dataset):
     def __getitem__(self, idx):
         item = self.data[idx]
 
-        # # Convert string label to integer
-        # if isinstance(item["label"], str):
-        #     item["label"] = self.label_mapping.get(item["label"], 5)
+        # Convert string label to integer
+        if isinstance(item["label"], str):
+            item["label"] = self.label_mapping.get(item["label"], 5)
 
         # Truncate to 511 tokens if necessary
         if len(item["input_ids"]) >= 512:
@@ -64,6 +64,9 @@ class SleepStageDataset(Dataset):
         # Append EOS token
         item["input_ids"] = torch.cat([item["input_ids"], torch.tensor([self.eos_token_id])])
         item["attention_mask"] = torch.cat([item["attention_mask"], torch.tensor([1])])
+        # Sanity Check
+        if idx < 5:  # Just for first few samples
+            logger.info(f"Sample {idx}: Label (int) = {item['label']}, Type = {type(item['label'])}")
 
         # Ensure fields are returned as tensors
         return {
