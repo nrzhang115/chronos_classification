@@ -25,30 +25,50 @@ def split_into_epochs(eeg_signal, sampling_rate, epoch_length_s=30):
     ]
     return epochs
 
-def load_annotation_mapping(annotation_file, data_dir):
+def load_all_files(data_dir):
     """
-    Load the mapping of .edf files to their corresponding .tsv files.
+    Load all EDF files in the specified directory.
     """
-        # Check if the annotation file exists
-    if not os.path.exists(annotation_file):
-        print(f"Annotation file not found: {annotation_file}")
-        return {}
-    
+    all_files = [f for f in os.listdir(data_dir) if f.endswith(".edf")]
+    print(f"Found {len(all_files)} EDF files in {data_dir}")
+    return all_files
+
+def load_annotation_mapping(data_dir):
+    """
+    Automatically find .tsv annotation files in the dataset directory.
+    """
     mapping = {}
-    print(f"Loading annotations from {annotation_file}")
-    with open(annotation_file, 'r') as f:
-        for line in f:
-            print(f"Raw line from file: {line.strip()}")  # Debug: Print raw line
-            line = line.strip()
-            if line:
-                # Construct full path to .tsv file in the dataset directory
-                tsv_path = os.path.join(data_dir, line)
-                edf_name = os.path.basename(tsv_path).replace('.tsv', '.edf')
-                mapping[edf_name] = tsv_path
-    print("Annotation Mapping Debug:")
-    for edf, tsv in mapping.items():
-        print(f"{edf} -> {tsv} (Exists: {os.path.exists(tsv)})")
+    for file in os.listdir(data_dir):
+        if file.endswith(".tsv"):
+            edf_name = file.replace(".tsv", ".edf")
+            mapping[edf_name] = os.path.join(data_dir, file)
+    print(f"Automatically mapped {len(mapping)} annotation files.")
     return mapping
+
+# def load_annotation_mapping(annotation_file, data_dir):
+#     """
+#     Load the mapping of .edf files to their corresponding .tsv files.
+#     """
+#         # Check if the annotation file exists
+#     if not os.path.exists(annotation_file):
+#         print(f"Annotation file not found: {annotation_file}")
+#         return {}
+    
+#     mapping = {}
+#     print(f"Loading annotations from {annotation_file}")
+#     with open(annotation_file, 'r') as f:
+#         for line in f:
+#             print(f"Raw line from file: {line.strip()}")  # Debug: Print raw line
+#             line = line.strip()
+#             if line:
+#                 # Construct full path to .tsv file in the dataset directory
+#                 tsv_path = os.path.join(data_dir, line)
+#                 edf_name = os.path.basename(tsv_path).replace('.tsv', '.edf')
+#                 mapping[edf_name] = tsv_path
+#     print("Annotation Mapping Debug:")
+#     for edf, tsv in mapping.items():
+#         print(f"{edf} -> {tsv} (Exists: {os.path.exists(tsv)})")
+#     return mapping
 
 
 
@@ -176,7 +196,7 @@ def save_to_arrow(data_list, output_dir):
         os.makedirs(output_dir)
 
     # Define the path for the Arrow file
-    path = os.path.join(output_dir, 'nch_sleep_data_selected.arrow')
+    path = os.path.join(output_dir, 'nch_sleep_data_all.arrow')
 
     # Write the data list to an Arrow file
     ArrowWriter(compression="lz4").write_to_file(
@@ -186,12 +206,12 @@ def save_to_arrow(data_list, output_dir):
 
     print(f"Data saved to {path}")
 
-def load_selected_files(file_path):
-    """
-    Load the list of selected files from a text file.
-    """
-    with open(file_path, 'r') as f:
-        return [line.strip() for line in f if line.strip()]
+# def load_selected_files(file_path):
+#     """
+#     Load the list of selected files from a text file.
+#     """
+#     with open(file_path, 'r') as f:
+#         return [line.strip() for line in f if line.strip()]
 
 def main():
     print("Starting main function...")
@@ -202,26 +222,39 @@ def main():
                         help="Directory to save the arrow file.")
     parser.add_argument("--select_ch", type=str, default="EEG C4-M1",
                         help="EEG channel to select")
-    parser.add_argument("--selected_files", type=str, default="/home/z5298768/chronos_classification/scripts/Selected_Files",
-                        help="Path to text file containing list of selected files.")
-    parser.add_argument("--annotation_file", type=str, default="/home/z5298768/chronos_classification/scripts/Selected_annotations",
-                        help="Path to text file containing list of annotation file paths.")
+    # parser.add_argument("--selected_files", type=str, default="/home/z5298768/chronos_classification/scripts/Selected_Files",
+    #                     help="Path to text file containing list of selected files.")
+    # parser.add_argument("--annotation_file", type=str, default="/home/z5298768/chronos_classification/scripts/Selected_annotations",
+    #                     help="Path to text file containing list of annotation file paths.")
     args = parser.parse_args()
 
-    # Load the selected file names
-    selected_files = load_selected_files(args.selected_files)
+    # # Load the selected file names
+    # selected_files = load_selected_files(args.selected_files)
 
-    # Load the mapping of annotation files
-    print("Calling load_annotation_mapping...")
-    annotation_mapping = load_annotation_mapping(args.annotation_file, args.data_dir)
+    # # Load the mapping of annotation files
+    # print("Calling load_annotation_mapping...")
+    # annotation_mapping = load_annotation_mapping(args.annotation_file, args.data_dir)
 
 
-    if len(selected_files) == 0:
-        print("Error: No selected files found in the specified file.")
+    # if len(selected_files) == 0:
+    #     print("Error: No selected files found in the specified file.")
+    #     return
+    
+    # Load all EDF files in the directory
+    print("Loading all EDF files in the data directory...")
+    all_files = load_all_files(args.data_dir)
+
+    # Load annotation mapping automatically
+    print("Scanning for annotation files...")
+    annotation_mapping = load_annotation_mapping(args.data_dir)
+
+    if len(all_files) == 0:
+        print("Error: No EDF files found in the specified directory.")
         return
 
     # Process only the selected files
-    final_data_list = process_nch_data(selected_files, args.data_dir, args.select_ch, annotation_mapping)
+    # final_data_list = process_nch_data(selected_files, args.data_dir, args.select_ch, annotation_mapping)
+    final_data_list = process_nch_data(all_files, args.data_dir, args.select_ch, annotation_mapping)
 
     if not final_data_list:
         print("No data prepared. Exiting.")
