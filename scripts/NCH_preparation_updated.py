@@ -185,11 +185,14 @@ def extract_labels(annotation_mapping, file_name, num_epochs):
         # Calculate start epoch index
         start_epoch = int(np.floor(start_time / epoch_duration))
         num_epochs_for_row = max(1, int(np.round(duration / epoch_duration)))
+        print(f"Checking: start_epoch={start_epoch}, num_epochs={num_epochs} for {file_name}")
+        print(f"DEBUG: File {file_name} - num_epochs = {num_epochs}")
 
         for i in range(num_epochs_for_row):
             current_epoch = start_epoch + i
             if 0 <= current_epoch < num_epochs:
                 labels[current_epoch] = sleep_stage
+                print(f"Assigned {sleep_stage} to epoch {current_epoch} in {file_name}")
             else:
                 print(f"Warning: Epoch index {current_epoch} is out of range (0-{num_epochs-1})")
     
