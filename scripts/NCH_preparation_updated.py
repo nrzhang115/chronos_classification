@@ -185,8 +185,8 @@ def extract_labels(annotation_mapping, file_name, num_epochs):
         # Calculate start epoch index
         start_epoch = int(np.floor(start_time / epoch_duration))
         num_epochs_for_row = max(1, int(np.round(duration / epoch_duration)))
-        print(f"Checking: start_epoch={start_epoch}, num_epochs={num_epochs} for {file_name}")
-        print(f"DEBUG: File {file_name} - num_epochs = {num_epochs}")
+        # print(f"Checking: start_epoch={start_epoch}, num_epochs={num_epochs} for {file_name}")
+        # print(f"DEBUG: File {file_name} - num_epochs = {num_epochs}")
 
         for i in range(num_epochs_for_row):
             current_epoch = start_epoch + i
@@ -196,7 +196,7 @@ def extract_labels(annotation_mapping, file_name, num_epochs):
             else:
                 print(f"Warning: Epoch index {current_epoch} is out of range (0-{num_epochs-1})")
     
-    print(f"Final assigned labels for {file_name} (100-120): {labels[100:120]}")
+    # print(f"Final assigned labels for {file_name} (200-250): {labels[200:250]}")
     return labels
 
 def process_nch_data(all_files, data_dir, select_ch, annotation_mapping):
@@ -250,6 +250,7 @@ def process_nch_data(all_files, data_dir, select_ch, annotation_mapping):
             "file_name": fname,  # Keep track of the source file
             "labels": labels,
         }
+        print(f"Labels just before saving for {fname} (200-250): {labels[200:250]}")
         data_list.append(entry)
 
         # # Clear memory for each study processed
