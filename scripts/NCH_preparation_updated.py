@@ -193,7 +193,7 @@ def extract_labels(annotation_mapping, file_name, num_epochs):
             else:
                 print(f"Warning: Epoch index {current_epoch} is out of range (0-{num_epochs-1})")
     
-    print(f"Final assigned labels for {file_name}: {labels[:20]}")
+    print(f"Final assigned labels for {file_name} (100-120): {labels[100:120]}")
     return labels
 
 def process_nch_data(all_files, data_dir, select_ch, annotation_mapping):
