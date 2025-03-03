@@ -172,12 +172,21 @@ def process_nch_data(all_files, data_dir, select_ch, annotation_mapping):
 
         # Extract labels from the corresponding TSV file
         labels = extract_labels(annotation_mapping, fname, len(epochs))
+        labels = labels if labels else ['unknown'] * len(epochs)  # Avoid None values
 
+        # # Prepare the time series entry
+        # entry = {
+        #     "eeg_epochs": epochs,  # Save the segmented EEG epochs
+        #     "file_name": fname,  # Keep track of the source file
+        #     "labels": labels,  # Add extracted labels
+        # }
+        # data_list.append(entry)
+        
         # Prepare the time series entry
         entry = {
-            "eeg_epochs": epochs,  # Save the segmented EEG epochs
+            "eeg_epochs": [epoch.tolist() for epoch in epochs],  # Convert np arrays to lists
             "file_name": fname,  # Keep track of the source file
-            "labels": labels,  # Add extracted labels
+            "labels": labels,
         }
         data_list.append(entry)
 
@@ -256,11 +265,16 @@ def main():
     if len(all_files) == 0:
         print("Error: No EDF files found in the specified directory.")
         return
+    
 
     # Process only the selected files
     # final_data_list = process_nch_data(selected_files, args.data_dir, args.select_ch, annotation_mapping)
     final_data_list = process_nch_data(all_files, args.data_dir, args.select_ch, annotation_mapping)
 
+    # Debugging: Print first entry before saving
+    print("First entry sample in final_data_list:")
+    print(final_data_list[0])
+    
     if not final_data_list:
         print("No data prepared. Exiting.")
         return
