@@ -196,7 +196,7 @@ def extract_labels(annotation_mapping, file_name, num_epochs):
             else:
                 print(f"Warning: Epoch index {current_epoch} is out of range (0-{num_epochs-1})")
     
-    # print(f"Final assigned labels for {file_name} (200-250): {labels[200:250]}")
+    print(f"Final assigned labels for {file_name} (400-420): {labels[400:420]}")
     return labels
 
 def process_nch_data(all_files, data_dir, select_ch, annotation_mapping):
@@ -250,7 +250,7 @@ def process_nch_data(all_files, data_dir, select_ch, annotation_mapping):
             "file_name": fname,  # Keep track of the source file
             "labels": labels,
         }
-        print(f"Labels just before saving for {fname} (200-250): {labels[200:250]}")
+        print(f"Labels just before saving for {fname} (400-420): {labels[400:420]}")
         data_list.append(entry)
 
         # # Clear memory for each study processed
