@@ -137,13 +137,13 @@ def extract_labels(annotation_mapping, file_name, num_epochs):
 
 
 
-def process_nch_data(selected_files, data_dir, select_ch, annotation_mapping):
+def process_nch_data(all_files, data_dir, select_ch, annotation_mapping):
     """
     Process only the selected files from the NCH dataset.
     """
     data_list = []  # Accumulate all processed data
 
-    for fname in tqdm(selected_files, desc="Processing selected files"):
+    for fname in tqdm(all_files, desc="Processing all files"):
         psg_path = os.path.join(data_dir, fname)
 
         if not os.path.exists(psg_path):
