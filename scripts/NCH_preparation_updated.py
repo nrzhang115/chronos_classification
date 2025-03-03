@@ -159,6 +159,9 @@ def extract_labels(annotation_mapping, file_name, num_epochs):
         skiprows=1,
     )
 
+    # Debugging: Check if TSV file structure is valid
+    print(f"TSV file head for {file_name}:\n{tsv_data.head()}")
+
     # Ensure numeric values
     tsv_data["start_time"] = pd.to_numeric(tsv_data["start_time"], errors="coerce")
     tsv_data["duration"] = pd.to_numeric(tsv_data["duration"], errors="coerce")
@@ -171,9 +174,6 @@ def extract_labels(annotation_mapping, file_name, num_epochs):
     labels = ['unknown'] * num_epochs
     epoch_duration = 30.0  # 30 seconds per epoch
 
-    # Debug: Print number of epochs
-    print(f"Number of epochs: {num_epochs}")
-
     for _, row in sleep_stage_data.iterrows():
         start_time = row["start_time"]
         duration = row["duration"]
@@ -183,25 +183,18 @@ def extract_labels(annotation_mapping, file_name, num_epochs):
             continue
 
         # Calculate start epoch index
-        start_epoch = int(round(start_time / epoch_duration))
-        num_epochs_for_row = int(round(duration / epoch_duration))
+        start_epoch = int(np.floor(start_time / epoch_duration))
+        num_epochs_for_row = max(1, int(np.round(duration / epoch_duration)))
 
-        # Debug: Check epoch calculations
-        print(f"Start Time: {start_time}, Start Epoch: {start_epoch}, Duration: {duration}, Epochs Assigned: {num_epochs_for_row}")
-
-        # Assign labels to correct epochs
         for i in range(num_epochs_for_row):
             current_epoch = start_epoch + i
-            if 0 <= current_epoch < num_epochs:  # Ensure within range
+            if 0 <= current_epoch < num_epochs:
                 labels[current_epoch] = sleep_stage
             else:
                 print(f"Warning: Epoch index {current_epoch} is out of range (0-{num_epochs-1})")
-
-    # Debug: Print first few assigned labels
-    print(f"Extracted labels for {file_name}: {labels[:20]}")
-
+    
+    print(f"Final assigned labels for {file_name}: {labels[:20]}")
     return labels
-
 
 def process_nch_data(all_files, data_dir, select_ch, annotation_mapping):
     """
