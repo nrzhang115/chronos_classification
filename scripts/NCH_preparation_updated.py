@@ -151,7 +151,8 @@ def process_nch_data(all_files, data_dir, select_ch, annotation_mapping):
             continue
 
         # Read EEG data using MNE
-        raw = read_raw_edf(psg_path, preload=True)
+        # raw = read_raw_edf(psg_path, preload=True)
+        raw = read_raw_edf(psg_path, preload=False) # Save memory
 
         # Skip if the selected channel does not exist
         if select_ch not in raw.info['ch_names']:
@@ -180,9 +181,13 @@ def process_nch_data(all_files, data_dir, select_ch, annotation_mapping):
         }
         data_list.append(entry)
 
+        # # Clear memory for each study processed
+        # raw.close()
+        # del raw
+        # gc.collect()  # Explicitly free memory
         # Clear memory for each study processed
         raw.close()
-        del raw
+        del eeg_signal, epochs, labels, raw
         gc.collect()  # Explicitly free memory
 
     return data_list
