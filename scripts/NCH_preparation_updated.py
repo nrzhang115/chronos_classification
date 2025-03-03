@@ -192,7 +192,7 @@ def extract_labels(annotation_mapping, file_name, num_epochs):
             current_epoch = start_epoch + i
             if 0 <= current_epoch < num_epochs:
                 labels[current_epoch] = sleep_stage
-                print(f"Assigned {sleep_stage} to epoch {current_epoch} in {file_name}")
+                # print(f"Assigned {sleep_stage} to epoch {current_epoch} in {file_name}")
             else:
                 print(f"Warning: Epoch index {current_epoch} is out of range (0-{num_epochs-1})")
     
