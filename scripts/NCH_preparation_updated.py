@@ -72,6 +72,69 @@ def load_annotation_mapping(data_dir):
 
 
 
+# def extract_labels(annotation_mapping, file_name, num_epochs):
+#     """
+#     Extract sleep stage labels from the corresponding TSV file and pad missing epochs.
+#     """
+#     if file_name not in annotation_mapping:
+#         print(f"Annotation file not listed for {file_name}. Skipping labels.")
+#         return None
+
+#     annotation_file = annotation_mapping[file_name]
+#     if not os.path.exists(annotation_file):
+#         print(f"Annotation file not found: {annotation_file}. Skipping labels.")
+#         return None
+
+#     # Debug: Print the file being processed
+#     print(f"Processing annotation file: {annotation_file}")
+
+#     # Read the TSV file, skipping the first row
+#     tsv_data = pd.read_csv(
+#         annotation_file,
+#         sep="\t",
+#         header=0,  # Use the first row as headers
+#         names=["start_time", "duration", "annotation"],  # Define column names
+#         skiprows=1,  # Skip the header row already in the file
+#     )
+
+#     # Ensure 'start_time' and 'duration' are numeric
+#     tsv_data["start_time"] = pd.to_numeric(tsv_data["start_time"], errors="coerce")
+#     tsv_data["duration"] = pd.to_numeric(tsv_data["duration"], errors="coerce")
+
+#     # Filter rows for sleep stage annotations
+#     sleep_stage_data = tsv_data[tsv_data["annotation"].str.contains("Sleep stage", na=False)]
+
+#     # Debug: Show filtered rows
+#     print(f"Filtered Sleep Stages from {annotation_file}:\n{sleep_stage_data.head()}")
+
+#     # Initialize all epochs with 'unknown'
+#     labels = ['unknown'] * num_epochs
+#     epoch_duration = 30.0  # Duration of each epoch in seconds
+
+#     for _, row in sleep_stage_data.iterrows():
+#         start_time = row["start_time"]
+#         duration = row["duration"]
+#         sleep_stage = row["annotation"].replace("Sleep stage ", "").strip()
+
+#         # Skip rows with invalid numeric values
+#         if pd.isna(start_time) or pd.isna(duration):
+#             continue
+
+#         # Calculate start and end epochs
+#         start_epoch = int(start_time // epoch_duration)
+#         num_epochs_for_row = int(duration // epoch_duration)
+
+#         # Assign the sleep stage to the corresponding epochs
+#         for i in range(num_epochs_for_row):
+#             current_epoch = start_epoch + i
+#             if current_epoch < num_epochs:  # Ensure we don't exceed the total number of epochs
+#                 labels[current_epoch] = sleep_stage
+
+#     # Debug: Print the first few labels
+#     print(f"Extracted and padded labels for {file_name}: {labels[:10]}...")  # Show first 10 labels
+
+#     return labels
+
 def extract_labels(annotation_mapping, file_name, num_epochs):
     """
     Extract sleep stage labels from the corresponding TSV file and pad missing epochs.
@@ -85,56 +148,59 @@ def extract_labels(annotation_mapping, file_name, num_epochs):
         print(f"Annotation file not found: {annotation_file}. Skipping labels.")
         return None
 
-    # Debug: Print the file being processed
     print(f"Processing annotation file: {annotation_file}")
 
-    # Read the TSV file, skipping the first row
+    # Read the TSV file
     tsv_data = pd.read_csv(
         annotation_file,
         sep="\t",
-        header=0,  # Use the first row as headers
-        names=["start_time", "duration", "annotation"],  # Define column names
-        skiprows=1,  # Skip the header row already in the file
+        header=0,
+        names=["start_time", "duration", "annotation"],
+        skiprows=1,
     )
 
-    # Ensure 'start_time' and 'duration' are numeric
+    # Ensure numeric values
     tsv_data["start_time"] = pd.to_numeric(tsv_data["start_time"], errors="coerce")
     tsv_data["duration"] = pd.to_numeric(tsv_data["duration"], errors="coerce")
 
-    # Filter rows for sleep stage annotations
+    # Filter only sleep stages
     sleep_stage_data = tsv_data[tsv_data["annotation"].str.contains("Sleep stage", na=False)]
+    print(f"Filtered Sleep Stages from {annotation_file}:\n{sleep_stage_data}")
 
-    # Debug: Show filtered rows
-    print(f"Filtered Sleep Stages from {annotation_file}:\n{sleep_stage_data.head()}")
-
-    # Initialize all epochs with 'unknown'
+    # Initialize labels with 'unknown'
     labels = ['unknown'] * num_epochs
-    epoch_duration = 30.0  # Duration of each epoch in seconds
+    epoch_duration = 30.0  # 30 seconds per epoch
+
+    # Debug: Print number of epochs
+    print(f"Number of epochs: {num_epochs}")
 
     for _, row in sleep_stage_data.iterrows():
         start_time = row["start_time"]
         duration = row["duration"]
         sleep_stage = row["annotation"].replace("Sleep stage ", "").strip()
 
-        # Skip rows with invalid numeric values
         if pd.isna(start_time) or pd.isna(duration):
             continue
 
-        # Calculate start and end epochs
-        start_epoch = int(start_time // epoch_duration)
-        num_epochs_for_row = int(duration // epoch_duration)
+        # Calculate start epoch index
+        start_epoch = int(round(start_time / epoch_duration))
+        num_epochs_for_row = int(round(duration / epoch_duration))
 
-        # Assign the sleep stage to the corresponding epochs
+        # Debug: Check epoch calculations
+        print(f"Start Time: {start_time}, Start Epoch: {start_epoch}, Duration: {duration}, Epochs Assigned: {num_epochs_for_row}")
+
+        # Assign labels to correct epochs
         for i in range(num_epochs_for_row):
             current_epoch = start_epoch + i
-            if current_epoch < num_epochs:  # Ensure we don't exceed the total number of epochs
+            if 0 <= current_epoch < num_epochs:  # Ensure within range
                 labels[current_epoch] = sleep_stage
+            else:
+                print(f"Warning: Epoch index {current_epoch} is out of range (0-{num_epochs-1})")
 
-    # Debug: Print the first few labels
-    print(f"Extracted and padded labels for {file_name}: {labels[:10]}...")  # Show first 10 labels
+    # Debug: Print first few assigned labels
+    print(f"Extracted labels for {file_name}: {labels[:20]}")
 
     return labels
-
 
 
 def process_nch_data(all_files, data_dir, select_ch, annotation_mapping):
