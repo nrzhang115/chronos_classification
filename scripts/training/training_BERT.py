@@ -13,14 +13,14 @@ data = torch.load("/srv/scratch/z5298768/chronos_classification/tokenization_upd
 # Convert list of dicts into a dictionary of tensors
 input_ids = torch.stack([sample["input_ids"] for sample in data])
 attention_mask = torch.stack([sample["attention_mask"] for sample in data]) 
-labels = torch.tensor([sample["labels"] for sample in data])  # Convert list to tensor
+labels = torch.tensor([sample["label"] for sample in data])  # Convert list to tensor
 
 # Print shapes to verify correctness
 print("input_ids shape:", input_ids.shape)       # Expected: (69332, seq_length)
 print("attention_mask shape:", attention_mask.shape)  # Expected: (69332, seq_length)
 print("labels shape:", labels.shape)            # Expected: (69332,)
 attention_mask = data.get("attention_mask", torch.ones_like(input_ids))  # If needed
-labels = data["labels"]  # Shape: (num_samples,)
+labels = data["label"]  # Shape: (num_samples,)
 
 # Define dataset class
 class SleepStageDataset(Dataset):
@@ -69,7 +69,7 @@ for epoch in range(epochs):
     for batch in dataloader:
         input_ids = batch["input_ids"].to(device)
         attention_mask = batch["attention_mask"].to(device)
-        labels = batch["labels"].to(device)
+        labels = batch["label"].to(device)
 
         optimizer.zero_grad()
 
