@@ -7,33 +7,32 @@ import torch.distributed as dist
 from torch.cuda.amp import GradScaler, autocast
 
 
+# Define a mapping of sleep stage labels to integers
+label_mapping = {
+    "W": 0,
+    "N1": 1,
+    "N2": 2,
+    "N3": 3,
+    "R": 4,
+    "unknown": -1  # If "unknown" should be ignored, we will filter it out later
+}
+
 # Load the tokenized data
 data = torch.load("/srv/scratch/z5298768/chronos_classification/tokenization_updated/tokenized_epochs.pt")
 
-# Print the first few labels
-print("First few labels:", [sample["label"] for sample in data[:10]])
+# Convert labels using the mapping
+filtered_data = [sample for sample in data if sample["label"] in label_mapping and label_mapping[sample["label"]] != -1]
 
-# Check if any labels are not integers
-non_integer_labels = [sample["label"] for sample in data if not isinstance(sample["label"], (int, float))]
-print(f"Total non-integer labels: {len(non_integer_labels)}")
-
-# Print an example of a problematic label
-if non_integer_labels:
-    print("Example problematic label:", non_integer_labels[0])
-    
-# Convert list of dicts into a dictionary of tensors
-input_ids = torch.stack([sample["input_ids"] for sample in data])
-attention_mask = torch.stack([sample["attention_mask"] for sample in data]) 
-#labels = torch.tensor([sample["label"] for sample in data])  # Convert list to tensor
-filtered_data = [sample for sample in data if isinstance(sample["label"], (int, float))]
-labels = torch.tensor([int(sample["label"]) for sample in filtered_data])  # Convert to integers
+# Extract tensors from the filtered dataset
+input_ids = torch.stack([sample["input_ids"] for sample in filtered_data])
+attention_mask = torch.stack([sample["attention_mask"] for sample in filtered_data])  # If available
+labels = torch.tensor([label_mapping[sample["label"]] for sample in filtered_data], dtype=torch.long)  # Convert to integer tensor
 
 # Print shapes to verify correctness
-print("input_ids shape:", input_ids.shape)       # Expected: (69332, seq_length)
-print("attention_mask shape:", attention_mask.shape)  # Expected: (69332, seq_length)
-print("labels shape:", labels.shape)            # Expected: (69332,)
-attention_mask = data.get("attention_mask", torch.ones_like(input_ids))  # If needed
-labels = data["label"]  # Shape: (num_samples,)
+print("input_ids shape:", input_ids.shape)       # Expected: (filtered_samples, 512)
+print("attention_mask shape:", attention_mask.shape)  # Expected: (filtered_samples, 512)
+print("labels shape:", labels.shape)            # Expected: (filtered_samples,)
+
 
 # Define dataset class
 class SleepStageDataset(Dataset):
