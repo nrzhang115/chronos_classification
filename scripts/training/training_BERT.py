@@ -4,7 +4,6 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
 from transformers import BertModel, BertTokenizer, BertForSequenceClassification
 import torch.distributed as dist
-from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.cuda.amp import GradScaler, autocast
 
 # Load tokenized data
@@ -35,20 +34,16 @@ dataset = SleepStageDataset(input_ids, attention_mask, labels)
 # dataloader = DataLoader(dataset, batch_size=16, shuffle=True)
 dataloader = DataLoader(dataset, batch_size=16, shuffle=True, num_workers=8, pin_memory=True)
 
-# Initialize distributed training
-dist.init_process_group(backend="nccl")
+
 
 # Load pre-trained BERT model
 num_classes = len(torch.unique(labels))  # Number of sleep stages
-# model = BertForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=num_classes)
+model = BertForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=num_classes)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-# model.to(device)
+model.to(device)
 
-# Wrap the model for multi-GPU training
-model = BertForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=num_classes)
-model = model.to(device)
-model = DDP(model)
+
 
 # Define loss function and optimizer
 criterion = nn.CrossEntropyLoss()
