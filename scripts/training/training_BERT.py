@@ -7,7 +7,7 @@ import torch.distributed as dist
 from torch.cuda.amp import GradScaler, autocast
 
 # Load tokenized data
-data = torch.load("tokenized_epochs.pt")  # Assuming data is a dictionary with 'input_ids' and 'labels'
+data = torch.load("/srv/scratch/z5298768/chronos_classification/tokenization_updated/tokenized_epochs.pt")
 input_ids = data["input_ids"]  # Shape: (num_samples, seq_length)
 attention_mask = data.get("attention_mask", torch.ones_like(input_ids))  # If needed
 labels = data["labels"]  # Shape: (num_samples,)
