@@ -6,12 +6,19 @@ from transformers import BertModel, BertTokenizer, BertForSequenceClassification
 import torch.distributed as dist
 from torch.cuda.amp import GradScaler, autocast
 
-# Load tokenized data
+
+# Load the tokenized data
 data = torch.load("/srv/scratch/z5298768/chronos_classification/tokenization_updated/tokenized_epochs.pt")
-print(type(data))  # Should be dict or list
-print(len(data))   # If it's a list, check how many items it has
-print(data[:3])    # Print the first 3 entries (if it's a list
-input_ids = data["input_ids"]  # Shape: (num_samples, seq_length)
+
+# Convert list of dicts into a dictionary of tensors
+input_ids = torch.stack([sample["input_ids"] for sample in data])
+attention_mask = torch.stack([sample["attention_mask"] for sample in data]) 
+labels = torch.tensor([sample["labels"] for sample in data])  # Convert list to tensor
+
+# Print shapes to verify correctness
+print("input_ids shape:", input_ids.shape)       # Expected: (69332, seq_length)
+print("attention_mask shape:", attention_mask.shape)  # Expected: (69332, seq_length)
+print("labels shape:", labels.shape)            # Expected: (69332,)
 attention_mask = data.get("attention_mask", torch.ones_like(input_ids))  # If needed
 labels = data["labels"]  # Shape: (num_samples,)
 
