@@ -83,7 +83,7 @@ optimizer = optim.AdamW(model.parameters(), lr=2e-5)
 
 
 # Training loop
-epochs = 3
+epochs = 10
 scaler = GradScaler()  # Helps with stable mixed precision training
 
 for epoch in range(epochs):
