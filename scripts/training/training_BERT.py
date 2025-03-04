@@ -10,10 +10,23 @@ from torch.cuda.amp import GradScaler, autocast
 # Load the tokenized data
 data = torch.load("/srv/scratch/z5298768/chronos_classification/tokenization_updated/tokenized_epochs.pt")
 
+# Print the first few labels
+print("First few labels:", [sample["label"] for sample in data[:10]])
+
+# Check if any labels are not integers
+non_integer_labels = [sample["label"] for sample in data if not isinstance(sample["label"], (int, float))]
+print(f"Total non-integer labels: {len(non_integer_labels)}")
+
+# Print an example of a problematic label
+if non_integer_labels:
+    print("Example problematic label:", non_integer_labels[0])
+    
 # Convert list of dicts into a dictionary of tensors
 input_ids = torch.stack([sample["input_ids"] for sample in data])
 attention_mask = torch.stack([sample["attention_mask"] for sample in data]) 
-labels = torch.tensor([sample["label"] for sample in data])  # Convert list to tensor
+#labels = torch.tensor([sample["label"] for sample in data])  # Convert list to tensor
+filtered_data = [sample for sample in data if isinstance(sample["label"], (int, float))]
+labels = torch.tensor([int(sample["label"]) for sample in filtered_data])  # Convert to integers
 
 # Print shapes to verify correctness
 print("input_ids shape:", input_ids.shape)       # Expected: (69332, seq_length)
