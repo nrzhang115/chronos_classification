@@ -9,6 +9,13 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, confusion_matrix
 import numpy as np
 
+import torch
+
+if torch.cuda.is_available():
+    print(f"Training is running on GPU: {torch.cuda.get_device_name(0)}")
+else:
+    print("Training is running on CPU only.")
+
 
 # Define a mapping of sleep stage labels to integers
 label_mapping = {
