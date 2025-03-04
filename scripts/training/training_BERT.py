@@ -8,6 +8,9 @@ from torch.cuda.amp import GradScaler, autocast
 
 # Load tokenized data
 data = torch.load("/srv/scratch/z5298768/chronos_classification/tokenization_updated/tokenized_epochs.pt")
+print(type(data))  # Should be dict or list
+print(len(data))   # If it's a list, check how many items it has
+print(data[:3])    # Print the first 3 entries (if it's a list
 input_ids = data["input_ids"]  # Shape: (num_samples, seq_length)
 attention_mask = data.get("attention_mask", torch.ones_like(input_ids))  # If needed
 labels = data["labels"]  # Shape: (num_samples,)
