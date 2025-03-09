@@ -83,10 +83,11 @@ def main_tokenization():
     arrow_file_path = "/srv/scratch/z5298768/chronos_classification/prepare_time_seires/C4-M1_updated/nch_sleep_data_selected.arrow"
     output_dir = "/srv/scratch/z5298768/chronos_classification/tokenization_updated"
     os.makedirs(output_dir, exist_ok=True)
+    print(tokenizer.convert_ids_to_tokens([3]))
 
     # Tokenizer Configuration
     context_length = 512  # Length of each sequence (512 tokens)
-    n_tokens = 8192 #4096 original 
+    n_tokens = 4096 #4096 original 
     tokenizer_class = "MeanScaleUniformBins"
     # tokenizer_kwargs = {"low_limit": -15.0, "high_limit": 15.0}
     tokenizer_kwargs = {"low_limit": -3.0, "high_limit": 3.0}
