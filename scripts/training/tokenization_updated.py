@@ -122,7 +122,13 @@ def main_tokenization():
         model_type=model_type,          # Set to "classification"
     ).create_tokenizer()
     
-    print("Token 3 corresponds to:", tokenizer.convert_ids_to_tokens([3]))
+    if hasattr(tokenizer, "id_to_token"):  
+        print("Token 3 corresponds to:", tokenizer.id_to_token(3))
+    elif hasattr(tokenizer, "decode"):
+        print("Token 3 corresponds to:", tokenizer.decode([3]))
+    else:
+        print("No method found for converting token 3.")
+
 
     # Initialize dataset
     dataset = ChronosEpochTokenizer(
