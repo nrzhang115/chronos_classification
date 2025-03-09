@@ -90,7 +90,7 @@ def main_tokenization():
     n_tokens = 4096 #4096 original 
     tokenizer_class = "MeanScaleUniformBins"
     # tokenizer_kwargs = {"low_limit": -15.0, "high_limit": 15.0}
-    tokenizer_kwargs = {"low_limit": -3.0, "high_limit": 3.0}
+    tokenizer_kwargs = {"low_limit": -5.0, "high_limit": 5.0}
 
     # Required parameters for ChronosConfig
     prediction_length = 0  # Not needed for classification

@@ -29,8 +29,8 @@ class SleepDataset(Dataset):
     def __init__(self, data):
         self.samples = [
             {
-                "input_ids": torch.tensor(sample["input_ids"], dtype=torch.long),
-                "attention_mask": torch.tensor(sample["attention_mask"], dtype=torch.long),
+                "input_ids": sample["input_ids"].clone().detach().to(dtype=torch.long),
+                "attention_mask": sample["attention_mask"].clone().detach().to(dtype=torch.long),
                 "label": LABEL_MAPPING[sample["label"]]
             }
             for sample in data if sample["label"] in LABEL_MAPPING
