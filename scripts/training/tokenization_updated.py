@@ -83,7 +83,7 @@ def main_tokenization():
     arrow_file_path = "/srv/scratch/z5298768/chronos_classification/prepare_time_seires/C4-M1_updated/nch_sleep_data_selected.arrow"
     output_dir = "/srv/scratch/z5298768/chronos_classification/tokenization_updated"
     os.makedirs(output_dir, exist_ok=True)
-    print(tokenizer.convert_ids_to_tokens([3]))
+    
 
     # Tokenizer Configuration
     context_length = 512  # Length of each sequence (512 tokens)
@@ -121,6 +121,8 @@ def main_tokenization():
         context_length=context_length,  # Correctly use context_length
         model_type=model_type,          # Set to "classification"
     ).create_tokenizer()
+    
+    print("Token 3 corresponds to:", tokenizer.convert_ids_to_tokens([3]))
 
     # Initialize dataset
     dataset = ChronosEpochTokenizer(
