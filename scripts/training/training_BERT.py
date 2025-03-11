@@ -59,8 +59,8 @@ train_dataset = SleepStageDataset(train_input_ids, train_attention_mask, train_l
 val_dataset = SleepStageDataset(val_input_ids, val_attention_mask, val_labels)
 
 # Create train and validation dataloaders
-train_dataloader = DataLoader(train_dataset, batch_size=8, shuffle=True, num_workers=8, pin_memory=True)
-val_dataloader = DataLoader(val_dataset, batch_size=8, shuffle=False, num_workers=8, pin_memory=True)
+train_dataloader = DataLoader(train_dataset, batch_size=16, shuffle=True, num_workers=8, pin_memory=True)
+val_dataloader = DataLoader(val_dataset, batch_size=16, shuffle=False, num_workers=8, pin_memory=True)
 
 # Load pre-trained BERT model (for binary classification)
 num_classes = 2  # Binary classification (W vs. N3)
