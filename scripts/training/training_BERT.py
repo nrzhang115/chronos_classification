@@ -69,12 +69,18 @@ model = BertForSequenceClassification.from_pretrained("bert-base-uncased", num_l
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model.to(device)
 
+# Compute class weights for imbalance handling
+class_counts = torch.bincount(train_labels)
+weights = 1.0 / class_counts.float()
+weights = weights / weights.sum()  # Normalize weights
+weights = weights.to(device)
+
 # Define loss function and optimizer
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.AdamW(model.parameters(), lr=2e-5)
+criterion = nn.CrossEntropyLoss(weight=weights)
+optimizer = optim.AdamW(model.parameters(), lr=1e-5)  # Reduce LR from 2e-5 to 1e-5
 
 # Training loop
-epochs = 10
+epochs = 20  # Increased from 10 to 20
 for epoch in range(epochs):
     model.train()
     total_loss = 0
@@ -89,6 +95,7 @@ for epoch in range(epochs):
         loss = criterion(outputs.logits, labels)
 
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)  # Gradient Clipping
         optimizer.step()
 
         total_loss += loss.item()
