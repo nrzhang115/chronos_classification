@@ -45,7 +45,7 @@ loss_fn = nn.CrossEntropyLoss(weight=class_weights)
 # Training arguments
 training_args = TrainingArguments(
     output_dir="./longformer_checkpoints",
-    evaluation_strategy="epoch",
+    eval_strategy="epoch",
     save_strategy="epoch",
     learning_rate=2e-5,
     per_device_train_batch_size=8,  # Smaller batch size
@@ -58,30 +58,26 @@ training_args = TrainingArguments(
     save_total_limit=2,
 )
 
-# Custom Trainer with early stopping
+# Fix: Define num_training_steps Without train_dataloader**
+num_training_steps = (len(train_dataset) // training_args.per_device_train_batch_size) * training_args.num_train_epochs
+
+# Define optimizer and learning rate scheduler
+optimizer = optim.AdamW(model.parameters(), lr=2e-5)
+lr_scheduler = get_scheduler(
+    name="linear",
+    optimizer=optimizer,
+    num_warmup_steps=0,
+    num_training_steps=num_training_steps  
+)
+
+# Correct compute_loss Implementation
 class CustomTrainer(Trainer):
     def compute_loss(self, model, inputs, return_outputs=False):
-        labels = inputs.pop("labels")
+        labels = inputs["labels"]  # Don't pop labels, keep them in inputs
         outputs = model(**inputs)
         logits = outputs.logits
         loss = loss_fn(logits, labels)
         return (loss, outputs) if return_outputs else loss
-
-trainer = CustomTrainer(
-    model=model,
-    args=training_args,
-    train_dataset=train_dataset,
-    eval_dataset=val_dataset,
-)
-
-# Define learning rate scheduler
-num_training_steps = len(train_dataset) * training_args.num_train_epochs
-lr_scheduler = get_scheduler(
-    name="linear",
-    optimizer=trainer.optimizer,
-    num_warmup_steps=0,
-    num_training_steps=num_training_steps,
-)
 
 # Implement early stopping
 class EarlyStoppingCallback:
@@ -99,6 +95,15 @@ class EarlyStoppingCallback:
             self.wait += 1
             if self.wait >= self.patience:
                 control.should_training_stop = True  # Stop training
+
+# Initialize Trainer
+trainer = CustomTrainer(
+    model=model,
+    args=training_args,
+    train_dataset=train_dataset,
+    eval_dataset=val_dataset,
+    optimizers=(optimizer, lr_scheduler),  # Fixed optimizer usage
+)
 
 early_stopping = EarlyStoppingCallback(patience=3)
 trainer.add_callback(early_stopping)
