@@ -12,8 +12,8 @@ data = torch.load("/srv/scratch/z5298768/chronos_classification/tokenization_upd
 
 # Convert dataset to Hugging Face Dataset format
 def preprocess_data(data):
-    input_ids = [torch.tensor(sample["input_ids"], dtype=torch.long) for sample in data]
-    attention_masks = [torch.tensor(sample["attention_mask"], dtype=torch.long) for sample in data]
+    input_ids = [sample["input_ids"].clone().detach().long() for sample in data]
+    attention_masks = [sample["attention_mask"].clone().detach().long() for sample in data]
     labels = [1 if sample["label"] == "N3" else 0 for sample in data]  # Binary classification (0 = W, 1 = N3)
 
     return Dataset.from_dict({
@@ -31,7 +31,8 @@ val_dataset = train_test_split["test"]
 config = LongformerConfig.from_pretrained("allenai/longformer-base-4096")
 config.attention_probs_dropout_prob = 0.2  # Increased dropout
 config.hidden_dropout_prob = 0.2  # Increased dropout
-model = LongformerForSequenceClassification.from_pretrained("allenai/longformer-base-4096", config=config, num_labels=2)
+
+model = LongformerForSequenceClassification.from_pretrained("allenai/longformer-base-4096", num_labels=2)
 
 # Compute class weights
 labels = np.array([sample["labels"] for sample in dataset])
