@@ -40,11 +40,11 @@ class_weights = torch.tensor(class_weights, dtype=torch.float).to("cuda")
 
 # Loss function with class weights
 loss_fn = nn.CrossEntropyLoss(weight=class_weights)
-optimizer = optim.AdamW(model.parameters(), lr=2e-5)
+# optimizer = optim.AdamW(model.parameters(), lr=2e-5)
 
 # Training arguments
 training_args = TrainingArguments(
-    output_dir="./longformer_checkpoints",
+    output_dir="./longerformer_checkpoints",
     evaluation_strategy="epoch",
     save_strategy="epoch",
     learning_rate=2e-5,
@@ -81,7 +81,7 @@ lr_scheduler = get_scheduler(
     optimizer=trainer.optimizer,
     num_warmup_steps=0,
     num_training_steps=num_training_steps,
-    optimizers=(optimizer, lr_scheduler)
+    
 )
 
 # Implement early stopping
