@@ -2,11 +2,10 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
-from transformers import BertForSequenceClassification, BertConfig, get_scheduler
+from transformers import BertForSequenceClassification, get_scheduler
 from sklearn.model_selection import train_test_split
 from sklearn.utils.class_weight import compute_class_weight
 from sklearn.metrics import classification_report, confusion_matrix
-from transformers import BertConfig
 import numpy as np
 
 # Check if GPU is available
@@ -50,10 +49,10 @@ class SleepStageDataset(Dataset):
         self.input_ids = input_ids
         self.attention_mask = attention_mask
         self.labels = labels
-    
+
     def __len__(self):
         return len(self.labels)
-    
+
     def __getitem__(self, idx):
         return {
             "input_ids": self.input_ids[idx],
@@ -65,30 +64,35 @@ class SleepStageDataset(Dataset):
 train_dataset = SleepStageDataset(train_input_ids, train_attention_mask, train_labels)
 val_dataset = SleepStageDataset(val_input_ids, val_attention_mask, val_labels)
 
-# Compute class weights using sklearn (Better Handling of Class Imbalance)
+# Compute class weights using sklearn
 unique_labels = torch.unique(train_labels).cpu().numpy()
 class_weights = compute_class_weight(class_weight="balanced", classes=unique_labels, y=train_labels.cpu().numpy())
 class_weights = torch.tensor(class_weights, dtype=torch.float).to(device)
 
-# Define a weighted sampler (Alternative to class weights)
-class_sample_counts = torch.bincount(train_labels)
-weights = 1.0 / class_sample_counts.float()
-sample_weights = weights[train_labels]
-sampler = WeightedRandomSampler(weights=sample_weights, num_samples=len(train_dataset), replacement=True)
+# Define **oversampling** using WeightedRandomSampler
+class_counts = torch.bincount(train_labels)  # Get class distribution
+max_samples = class_counts.max().item()  # Get max class size
+
+# Compute sample weights
+sample_weights = torch.zeros_like(train_labels, dtype=torch.float)
+for class_idx in range(len(class_counts)):
+    sample_weights[train_labels == class_idx] = max_samples / class_counts[class_idx].item()
+
+# Create WeightedRandomSampler
+sampler = WeightedRandomSampler(sample_weights, num_samples=len(train_dataset), replacement=True)
 
 # Create train and validation dataloaders
 batch_size = 16
 train_dataloader = DataLoader(train_dataset, batch_size=batch_size, sampler=sampler, num_workers=8, pin_memory=True)
 val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=True)
 
-# Load pre-trained BERT model with custom dropout
 # Load pre-trained BERT model
 num_classes = len(label_mapping)
 model = BertForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=num_classes)
 model.to(device)
 
-# Define weighted loss function
-criterion = nn.CrossEntropyLoss(weight=class_weights)
+# Define standard loss function
+criterion = nn.CrossEntropyLoss()
 
 # Define optimizer with weight decay
 learning_rate = 2e-5
@@ -126,9 +130,9 @@ for epoch in range(epochs):
         lr_scheduler.step()
 
         total_loss += loss.item()
-    
+
     print(f"Epoch {epoch + 1}, Loss: {total_loss / len(train_dataloader)}")
-    
+
     # ======= Validation =======
     model.eval()
     val_loss = 0
