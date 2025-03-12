@@ -85,7 +85,7 @@ config = BertConfig.from_pretrained("bert-base-uncased")
 config.hidden_dropout_prob = 0.3  # Default is 0.1, increase to 0.3
 config.attention_probs_dropout_prob = 0.3  # Default is 0.1
 num_classes = len(label_mapping)
-
+config.num_labels == num_classes
 model = BertForSequenceClassification.from_pretrained("bert-base-uncased", config=config, num_labels=num_classes)
 model.to(device)
 
