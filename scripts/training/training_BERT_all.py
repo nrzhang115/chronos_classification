@@ -6,6 +6,7 @@ from transformers import BertForSequenceClassification, BertConfig, get_schedule
 from sklearn.model_selection import train_test_split
 from sklearn.utils.class_weight import compute_class_weight
 from sklearn.metrics import classification_report, confusion_matrix
+from transformers import BertConfig
 import numpy as np
 
 # Check if GPU is available
@@ -81,12 +82,9 @@ train_dataloader = DataLoader(train_dataset, batch_size=batch_size, sampler=samp
 val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=True)
 
 # Load pre-trained BERT model with custom dropout
-config = BertConfig.from_pretrained("bert-base-uncased")
-config.hidden_dropout_prob = 0.3  # Default is 0.1, increase to 0.3
-config.attention_probs_dropout_prob = 0.3  # Default is 0.1
+# Load pre-trained BERT model
 num_classes = len(label_mapping)
-config.num_labels == num_classes
-model = BertForSequenceClassification.from_pretrained("bert-base-uncased", config=config, num_labels=num_classes)
+model = BertForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=num_classes)
 model.to(device)
 
 # Define weighted loss function
