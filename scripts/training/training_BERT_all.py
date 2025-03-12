@@ -1,9 +1,10 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader, Dataset
-from transformers import BertForSequenceClassification
+from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
+from transformers import BertForSequenceClassification, BertConfig, get_scheduler
 from sklearn.model_selection import train_test_split
+from sklearn.utils.class_weight import compute_class_weight
 from sklearn.metrics import classification_report, confusion_matrix
 import numpy as np
 
@@ -63,31 +64,49 @@ class SleepStageDataset(Dataset):
 train_dataset = SleepStageDataset(train_input_ids, train_attention_mask, train_labels)
 val_dataset = SleepStageDataset(val_input_ids, val_attention_mask, val_labels)
 
+# Compute class weights using sklearn (Better Handling of Class Imbalance)
+unique_labels = torch.unique(train_labels).cpu().numpy()
+class_weights = compute_class_weight(class_weight="balanced", classes=unique_labels, y=train_labels.cpu().numpy())
+class_weights = torch.tensor(class_weights, dtype=torch.float).to(device)
+
+# Define a weighted sampler (Alternative to class weights)
+class_sample_counts = torch.bincount(train_labels)
+weights = 1.0 / class_sample_counts.float()
+sample_weights = weights[train_labels]
+sampler = WeightedRandomSampler(weights=sample_weights, num_samples=len(train_dataset), replacement=True)
+
 # Create train and validation dataloaders
 batch_size = 16
-train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True)
+train_dataloader = DataLoader(train_dataset, batch_size=batch_size, sampler=sampler, num_workers=8, pin_memory=True)
 val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=True)
 
-# Load pre-trained BERT model
+# Load pre-trained BERT model with custom dropout
+config = BertConfig.from_pretrained("bert-base-uncased")
+config.hidden_dropout_prob = 0.3  # Default is 0.1, increase to 0.3
+config.attention_probs_dropout_prob = 0.3  # Default is 0.1
 num_classes = len(label_mapping)
-model = BertForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=num_classes)
+
+model = BertForSequenceClassification.from_pretrained("bert-base-uncased", config=config, num_labels=num_classes)
 model.to(device)
 
-# Compute class weights for imbalance handling (SIMPLIFIED)
-class_counts = torch.bincount(train_labels)
-weights = 1.0 / class_counts.float()  # Inverse frequency
-weights = weights / weights.sum()  # Normalize weights
-weights = weights.to(device)
+# Define weighted loss function
+criterion = nn.CrossEntropyLoss(weight=class_weights)
 
-# Define loss function
-criterion = nn.CrossEntropyLoss(weight=weights)
-
-# Define optimizer
+# Define optimizer with weight decay
 learning_rate = 2e-5
-optimizer = optim.AdamW(model.parameters(), lr=learning_rate)
+optimizer = optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=0.01)
 
-# Training loop
-epochs = 10
+# Define learning rate scheduler
+num_training_steps = len(train_dataloader) * 20  # 20 epochs
+lr_scheduler = get_scheduler(
+    "linear", optimizer=optimizer, num_warmup_steps=0, num_training_steps=num_training_steps
+)
+
+# Training loop with early stopping
+epochs = 20
+early_stopping_patience = 3
+best_val_loss = float("inf")
+patience_counter = 0
 
 for epoch in range(epochs):
     model.train()
@@ -106,6 +125,7 @@ for epoch in range(epochs):
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)  # Gradient Clipping
         optimizer.step()
+        lr_scheduler.step()
 
         total_loss += loss.item()
     
@@ -134,6 +154,17 @@ for epoch in range(epochs):
     avg_val_loss = val_loss / len(val_dataloader)
     print(f"Epoch {epoch + 1}, Validation Loss: {avg_val_loss}")
 
+    # Check for early stopping
+    if avg_val_loss < best_val_loss:
+        best_val_loss = avg_val_loss
+        patience_counter = 0
+        torch.save(model.state_dict(), "bert_sleep_allclass_best.pth")  # Save the best model
+    else:
+        patience_counter += 1
+        if patience_counter >= early_stopping_patience:
+            print("Early stopping triggered!")
+            break
+
     # Compute validation metrics
     report = classification_report(all_labels, all_preds, target_names=list(label_mapping.keys()))
     conf_matrix = confusion_matrix(all_labels, all_preds)
@@ -148,6 +179,4 @@ for epoch in range(epochs):
         f.write("Validation Confusion Matrix:\n")
         f.write(np.array2string(conf_matrix))
 
-# Save the trained model
-torch.save(model.state_dict(), "bert_sleep_allclass_classifier.pth")
-print("Allclass classification model training complete and saved.")
+print("All-class classification model training complete and saved.")
