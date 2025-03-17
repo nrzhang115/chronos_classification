@@ -2,8 +2,9 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-from torch.utils.data import Dataset, DataLoader
-from transformers import LongformerModel, LongformerTokenizer, LongformerForSequenceClassification
+from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
+from transformers import LongformerForSequenceClassification, LongformerTokenizer
+from peft import LoraConfig, get_peft_model
 from sklearn.metrics import classification_report, confusion_matrix
 import numpy as np
 
@@ -11,14 +12,14 @@ import numpy as np
 MODEL_NAME = "allenai/longformer-base-4096"
 NUM_CLASSES = 2  # Binary classification (W vs. N3)
 BATCH_SIZE = 16
-EPOCHS = 10
-LEARNING_RATE = 2e-5
+EPOCHS = 20
+LEARNING_RATE = 1e-5
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load pre-trained Longformer tokenizer
 tokenizer = LongformerTokenizer.from_pretrained(MODEL_NAME)
 
-# Load the tokenized dataset (assuming it has input_ids, attention_mask, and labels)
+# Load the tokenized dataset
 data = torch.load("/srv/scratch/z5298768/chronos_classification/tokenization_updated/tokenized_epochs.pt")
 
 # Convert labels to binary (W = 0, N3 = 1)
@@ -35,6 +36,7 @@ class SleepDataset(Dataset):
             }
             for sample in data if sample["label"] in LABEL_MAPPING
         ]
+        self.labels = [s["label"] for s in self.samples]
 
     def __len__(self):
         return len(self.samples)
@@ -53,16 +55,32 @@ val_data = data[split_idx:]
 train_dataset = SleepDataset(train_data)
 val_dataset = SleepDataset(val_data)
 
-train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
+# Handle class imbalance using WeightedRandomSampler
+labels = train_dataset.labels
+class_counts = np.bincount(labels)
+class_weights = 1.0 / class_counts
+sample_weights = np.array([class_weights[label] for label in labels])
+sampler = WeightedRandomSampler(sample_weights, len(sample_weights))
+
+train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, sampler=sampler)
 val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
-# Load Longformer model for classification
+# Load Longformer model with LoRA fine-tuning
 model = LongformerForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=NUM_CLASSES)
+
+# Apply LoRA to attention layers
+lora_config = LoraConfig(
+    r=8,  # Rank
+    lora_alpha=16,
+    lora_dropout=0.1,
+    target_modules=["query", "value"]
+)
+model = get_peft_model(model, lora_config)
 model.to(DEVICE)
 
 # Define optimizer and loss function
 optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE)
-criterion = nn.CrossEntropyLoss()
+criterion = nn.CrossEntropyLoss(weight=torch.tensor(class_weights, dtype=torch.float).to(DEVICE))
 
 # Training function
 def train(model, train_loader, val_loader, epochs):
@@ -77,7 +95,7 @@ def train(model, train_loader, val_loader, epochs):
 
             optimizer.zero_grad()
             outputs = model(input_ids, attention_mask=attention_mask)
-            loss = criterion(outputs.logits, labels)
+            loss = criterion(outputs.logits, labels.long())  # Ensure labels are long dtype
             loss.backward()
             optimizer.step()
             total_loss += loss.item()
