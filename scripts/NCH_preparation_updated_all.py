@@ -80,7 +80,7 @@ def extract_labels(annotation_mapping, file_name, num_epochs):
 
 
 def process_single_file(args):
-    """Process a single EDF file for EEG extraction."""
+    """Process a single EEG file with proper memory management."""
     fname, data_dir, select_ch, annotation_mapping = args
     psg_path = os.path.join(data_dir, fname)
 
@@ -89,7 +89,7 @@ def process_single_file(args):
         return None
 
     try:
-        raw = read_raw_edf(psg_path, preload=False)  # Efficient memory usage
+        raw = read_raw_edf(psg_path, preload=False)  # Avoid loading full file into memory
         if select_ch not in raw.info['ch_names']:
             print(f"Channel {select_ch} not found in {fname}. Skipping.")
             return None
@@ -105,32 +105,50 @@ def process_single_file(args):
         labels = extract_labels(annotation_mapping, fname, len(epochs))
         labels = labels if labels else ["unknown"] * len(epochs)
 
-        raw.close()
-        del raw, eeg_signal
-        gc.collect()
-
-        return {
-            "eeg_epochs": [epoch.tolist() for epoch in epochs],
+        # Convert EEG data to lists before returning (avoid large numpy arrays)
+        entry = {
+            "eeg_epochs": [epoch.tolist() for epoch in epochs],  
             "file_name": fname,
             "labels": labels,
         }
+
+        raw.close()
+        del raw, eeg_signal, epochs
+        gc.collect()  # Explicitly free memory
+
+        return entry
 
     except Exception as e:
         print(f"Error processing {fname}: {e}")
         return None
 
 
-def process_nch_data(all_files, data_dir, select_ch, annotation_mapping, num_workers=mp.cpu_count()):
-    """Process multiple EEG files in parallel using multiprocessing."""
+
+def process_nch_data(all_files, data_dir, select_ch, annotation_mapping, num_workers=8):
+    """Process EEG files in parallel while managing memory usage."""
     print(f"Processing {len(all_files)} files with {num_workers} CPU cores...")
 
-    with mp.Pool(num_workers) as pool:
-        results = list(tqdm(pool.imap(process_single_file, 
-                                      [(fname, data_dir, select_ch, annotation_mapping) for fname in all_files]), 
-                            total=len(all_files), desc="Processing EEG files"))
+    output_dir = "temp_results"  # Directory to store intermediate results
+    os.makedirs(output_dir, exist_ok=True)
 
-    final_data = [res for res in results if res is not None]
+    def wrapper(args):
+        """Worker function to process and save data directly to disk."""
+        result = process_single_file(args)
+        if result:
+            out_path = os.path.join(output_dir, result["file_name"] + ".npy")
+            np.save(out_path, result)  # Save data as numpy file
+        return None  # Don't return large objects to avoid BrokenPipeError
+
+    with mp.Pool(num_workers) as pool:
+        list(tqdm(pool.imap(wrapper, 
+                            [(fname, data_dir, select_ch, annotation_mapping) for fname in all_files]), 
+                  total=len(all_files), desc="Processing EEG files"))
+
+    print("All files processed. Loading data back into memory...")
+    final_data = [np.load(os.path.join(output_dir, f), allow_pickle=True).item() for f in os.listdir(output_dir)]
+    
     return final_data
+
 
 
 def save_to_arrow(data_list, output_dir):
@@ -151,7 +169,7 @@ def main():
                         help="Directory to save the arrow file.")
     parser.add_argument("--select_ch", type=str, default="EEG C4-M1",
                         help="EEG channel to select")
-    parser.add_argument("--num_workers", type=int, default=mp.cpu_count(),
+    parser.add_argument("--num_workers", type=int, default=8,  # Safe limit
                         help="Number of CPU workers for parallel processing.")
 
     args = parser.parse_args()
@@ -171,6 +189,7 @@ def main():
         return
 
     save_to_arrow(final_data_list, args.output_dir)
+
 
 
 if __name__ == "__main__":
