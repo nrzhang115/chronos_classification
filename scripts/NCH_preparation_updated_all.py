@@ -122,32 +122,25 @@ def process_single_file(args):
         print(f"Error processing {fname}: {e}")
         return None
 
+def wrapper(args):
+    """Worker function to process and save data directly to disk."""
+    return process_single_file(args)  # Must be a picklable function
 
 
 def process_nch_data(all_files, data_dir, select_ch, annotation_mapping, num_workers=8):
     """Process EEG files in parallel while managing memory usage."""
     print(f"Processing {len(all_files)} files with {num_workers} CPU cores...")
 
-    output_dir = "temp_results"  # Directory to store intermediate results
-    os.makedirs(output_dir, exist_ok=True)
-
-    def wrapper(args):
-        """Worker function to process and save data directly to disk."""
-        result = process_single_file(args)
-        if result:
-            out_path = os.path.join(output_dir, result["file_name"] + ".npy")
-            np.save(out_path, result)  # Save data as numpy file
-        return None  # Don't return large objects to avoid BrokenPipeError
-
     with mp.Pool(num_workers) as pool:
-        list(tqdm(pool.imap(wrapper, 
-                            [(fname, data_dir, select_ch, annotation_mapping) for fname in all_files]), 
-                  total=len(all_files), desc="Processing EEG files"))
+        results = list(tqdm(
+            pool.imap(wrapper, [(fname, data_dir, select_ch, annotation_mapping) for fname in all_files]),
+            total=len(all_files),
+            desc="Processing EEG files"
+        ))
 
-    print("All files processed. Loading data back into memory...")
-    final_data = [np.load(os.path.join(output_dir, f), allow_pickle=True).item() for f in os.listdir(output_dir)]
-    
+    final_data = [res for res in results if res is not None]
     return final_data
+
 
 
 
