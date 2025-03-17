@@ -2,7 +2,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
-from transformers import BertForSequenceClassification
+from transformers import BertForSequenceClassification, AutoModel
+from peft import LoraConfig, get_peft_model
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, confusion_matrix
 import numpy as np
@@ -64,7 +65,20 @@ val_dataloader = DataLoader(val_dataset, batch_size=16, shuffle=False, num_worke
 
 # Load pre-trained BERT model (for binary classification)
 num_classes = 2  # Binary classification (W vs. N3)
-model = BertForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=num_classes)
+base_model = BertForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=num_classes)
+
+# Define LoRA configuration
+lora_config = LoraConfig(
+    r=8,  # Low-rank parameter
+    lora_alpha=16,
+    lora_dropout=0.1,
+    target_modules=["query", "key", "value"],  # Apply LoRA to attention layers
+    bias="none",
+    task_type="SEQ_CLS"
+)
+
+# Apply LoRA to the model
+model = get_peft_model(base_model, lora_config)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model.to(device)
@@ -80,7 +94,6 @@ criterion = nn.CrossEntropyLoss(weight=weights)
 optimizer = optim.AdamW(model.parameters(), lr=1e-5)  # Reduce LR from 2e-5 to 1e-5
 
 # Training loop
-
 epochs = 20  # Increased from 10 to 20
 for epoch in range(epochs):
     model.train()
@@ -140,6 +153,6 @@ for epoch in range(epochs):
         f.write("Validation Confusion Matrix:\n")
         f.write(np.array2string(conf_matrix))
 
-# Save the trained model
-torch.save(model.state_dict(), "bert_sleep_binary_classifier.pth")
+# Save the trained LoRA-adapted model
+torch.save(model.state_dict(), "bert_sleep_binary_classifier_lora.pth")
 print("Binary classification model training complete and saved.")
