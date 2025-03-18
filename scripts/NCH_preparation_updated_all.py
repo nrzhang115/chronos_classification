@@ -94,8 +94,8 @@ def process_single_file(args):
             print(f"Channel {select_ch} not found in {fname}. Skipping.")
             return None
 
-        raw.pick([select_ch])
-        eeg_signal = raw.get_data()[0]
+        # raw.pick([select_ch])
+        eeg_signal = raw.get_data(picks=[select_ch], units='uV')[0]  # Load only one channel
         epochs = split_into_epochs(eeg_signal, TARGET_SAMPLING_RATE)
 
         if not epochs:
@@ -107,7 +107,8 @@ def process_single_file(args):
 
         # Convert EEG data to lists before returning (avoid large numpy arrays)
         entry = {
-            "eeg_epochs": [epoch.tolist() for epoch in epochs],  
+            # "eeg_epochs": [epoch.tolist() for epoch in epochs],  
+            "eeg_epochs": [np.array(epoch, dtype=np.float32).astype(np.float16).tolist() for epoch in epochs],
             "file_name": fname,
             "labels": labels,
         }
@@ -143,7 +144,7 @@ def process_nch_data(all_files, data_dir, select_ch, annotation_mapping, num_wor
     batch_size = max(5, len(all_files) // num_workers)  # Reduce batch size
     results = []
     
-    with mp.Pool(num_workers) as pool:
+    with mp.Pool(num_workers, maxtasksperchild=5) as pool:
         for i in range(0, len(all_files), batch_size):
             batch = all_files[i:i+batch_size]
             batch_results = list(tqdm(
@@ -151,8 +152,14 @@ def process_nch_data(all_files, data_dir, select_ch, annotation_mapping, num_wor
                 total=len(batch),
                 desc=f"Processing batch {i//batch_size + 1}"
             ))
-            results.extend(batch_results)
+            batch_output_path = os.path.join(output_dir, f"nch_sleep_data_batch_{i}.arrow")
+            batch_results = [r for r in batch_results if r is not None]
+
+            if batch_results:
+                save_to_arrow(batch_results, batch_output_path)  # Save each batch separately
+
             gc.collect()  # Free memory after each batch
+
 
     final_data = [r for r in results if r is not None]
     return final_data
