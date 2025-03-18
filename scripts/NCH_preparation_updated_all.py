@@ -137,7 +137,7 @@ def wrapper(args):
 
 
 
-def process_nch_data(all_files, data_dir, select_ch, annotation_mapping, num_workers=2):
+def process_nch_data(all_files, data_dir, select_ch, annotation_mapping, output_dir, num_workers=2):
     """Process EEG files in parallel in small batches."""
     print(f"Processing {len(all_files)} files with {num_workers} CPU cores...", flush=True)
 
@@ -199,7 +199,7 @@ def main():
         print("Error: No EDF files found.")
         return
 
-    final_data_list = process_nch_data(all_files, args.data_dir, args.select_ch, annotation_mapping, args.num_workers)
+    final_data_list = process_nch_data(all_files, args.data_dir, args.select_ch, annotation_mapping, args.output_dir args.num_workers)
 
     if not final_data_list:
         print("No data prepared. Exiting.")
