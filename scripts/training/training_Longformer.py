@@ -63,7 +63,9 @@ class_weights = torch.tensor([total_samples / c for c in class_counts], dtype=to
 
 # 🔥 FIXED: Use better-balanced sampling
 sampling_ratio = class_counts[1] / class_counts[0]  # N3 / W ratio
-sample_weights = np.array([class_weights[label] * sampling_ratio for label in labels])
+class_weights_cpu = class_weights.cpu().numpy()  # Move to CPU before using NumPy
+sample_weights = np.array([class_weights_cpu[label] * sampling_ratio for label in labels])
+
 sampler = WeightedRandomSampler(sample_weights, len(sample_weights), replacement=True)
 
 train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, sampler=sampler)
