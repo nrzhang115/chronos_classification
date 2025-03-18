@@ -24,19 +24,10 @@ def split_into_epochs(eeg_signal, sampling_rate, epoch_length_s=30):
 
 
 def load_all_files(data_dir):
-    """Load all EDF files, filtering out unreadable ones."""
-    all_files = []
-    for f in os.listdir(data_dir):
-        if f.endswith(".edf"):
-            path = os.path.join(data_dir, f)
-            try:
-                read_raw_edf(path, preload=False)  # Try opening first
-                all_files.append(f)
-            except Exception as e:
-                print(f"Skipping {f}: Cannot read file. Error: {e}")
-    print(f"Found {len(all_files)} valid EDF files in {data_dir}")
+    """Load all EDF files in the specified directory."""
+    all_files = [f for f in os.listdir(data_dir) if f.endswith(".edf")]
+    print(f"Found {len(all_files)} EDF files in {data_dir}")
     return all_files
-
 
 
 def load_annotation_mapping(data_dir):
@@ -133,27 +124,22 @@ def process_single_file(args):
 
 def wrapper(args):
     """Worker function to process and save data directly to disk."""
-    try:
-        return process_single_file(args)
-    except Exception as e:
-        print(f"Worker failed on {args[0]}: {e}")
-        return None
+    return process_single_file(args)  # Must be a picklable function
 
 
 def process_nch_data(all_files, data_dir, select_ch, annotation_mapping, num_workers=8):
+    """Process EEG files in parallel while managing memory usage."""
     print(f"Processing {len(all_files)} files with {num_workers} CPU cores...")
 
     with mp.Pool(num_workers) as pool:
-        results = []
-        for res in tqdm(pool.imap(wrapper, [(fname, data_dir, select_ch, annotation_mapping) for fname in all_files]),
-                        total=len(all_files), desc="Processing EEG files"):
-            if res is not None:
-                results.append(res)
-            gc.collect()  # Force garbage collection after each file
+        results = list(tqdm(
+            pool.imap(wrapper, [(fname, data_dir, select_ch, annotation_mapping) for fname in all_files]),
+            total=len(all_files),
+            desc="Processing EEG files"
+        ))
 
-    final_data = [r for r in results if r is not None]
+    final_data = [res for res in results if res is not None]
     return final_data
-
 
 
 
