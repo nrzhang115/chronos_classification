@@ -11,9 +11,9 @@ import numpy as np
 # Define constants
 MODEL_NAME = "allenai/longformer-base-4096"
 NUM_CLASSES = 2  # Binary classification (W vs. N3)
-BATCH_SIZE = 16
+BATCH_SIZE = 8  # Reduced batch size for better updates
 EPOCHS = 10
-LEARNING_RATE = 1e-5
+LEARNING_RATE = 2e-5  # Increased learning rate
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load pre-trained Longformer tokenizer
@@ -55,17 +55,16 @@ val_data = data[split_idx:]
 train_dataset = SleepDataset(train_data)
 val_dataset = SleepDataset(val_data)
 
-# 🔥 FIXED: Correct class weight calculation
+# Compute class weights
 labels = train_dataset.labels
 class_counts = np.bincount(labels)
 total_samples = sum(class_counts)
 class_weights = torch.tensor([total_samples / c for c in class_counts], dtype=torch.float).to(DEVICE)
 
-# 🔥 FIXED: Use better-balanced sampling
-sampling_ratio = class_counts[1] / class_counts[0]  # N3 / W ratio
-class_weights_cpu = class_weights.cpu().numpy()  # Move to CPU before using NumPy
+# Handle class imbalance
+sampling_ratio = class_counts[1] / class_counts[0]
+class_weights_cpu = class_weights.cpu().numpy()
 sample_weights = np.array([class_weights_cpu[label] * sampling_ratio for label in labels])
-
 sampler = WeightedRandomSampler(sample_weights, len(sample_weights), replacement=True)
 
 train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, sampler=sampler)
@@ -74,21 +73,22 @@ val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
 # Load Longformer model with LoRA fine-tuning
 model = LongformerForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=NUM_CLASSES)
 
-# 🔥 FIXED: Also fine-tune the classifier head
+# 🔥 Allow fine-tuning of classifier head
 lora_config = LoraConfig(
-    r=8,  # Rank
+    r=8,
     lora_alpha=16,
     lora_dropout=0.1,
-    target_modules=["query", "value", "classifier.dense"]  # 🔥 ADDED classifier head tuning
+    target_modules=["query", "value"]
 )
 model = get_peft_model(model, lora_config)
+for param in model.classifier.parameters():
+    param.requires_grad = True  # 🔥 Fine-tune classifier head
+
 model.to(DEVICE)
 
-# Define optimizer and loss function
-optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE)
-
-# 🔥 FIXED: Add label smoothing
-criterion = nn.CrossEntropyLoss(weight=class_weights, label_smoothing=0.1)
+# Optimizer and Loss
+optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=0.01)  # 🔥 Added weight decay
+criterion = nn.CrossEntropyLoss(weight=class_weights, label_smoothing=0.2)  # 🔥 Added label smoothing
 
 # Training function
 def train(model, train_loader, val_loader, epochs):
@@ -104,8 +104,7 @@ def train(model, train_loader, val_loader, epochs):
             optimizer.zero_grad()
             outputs = model(input_ids, attention_mask=attention_mask)
 
-            # 🔥 FIXED: Ensure correct label dtype
-            loss = criterion(outputs.logits, labels.to(torch.int64))  
+            loss = criterion(outputs.logits, labels.to(torch.int64))
             loss.backward()
             optimizer.step()
             total_loss += loss.item()
@@ -113,7 +112,6 @@ def train(model, train_loader, val_loader, epochs):
         avg_loss = total_loss / len(train_loader)
         print(f"Epoch {epoch+1}/{epochs}, Loss: {avg_loss:.4f}")
 
-        # Validate model
         validate(model, val_loader)
 
 # Validation function
@@ -133,13 +131,10 @@ def validate(model, val_loader):
             predictions.extend(preds.cpu().numpy())
             true_labels.extend(labels.cpu().numpy())
 
-    # Print classification results
-    print("Validation Classification Report:\n", classification_report(true_labels, predictions))
-    print("Validation Confusion Matrix:\n", confusion_matrix(true_labels, predictions))
+    print(classification_report(true_labels, predictions))
+    print(confusion_matrix(true_labels, predictions))
 
-# Train the model
 train(model, train_loader, val_loader, EPOCHS)
 
-# Save the trained model
 torch.save(model.state_dict(), "longformer_sleep_classifier.pth")
 print("Model training complete and saved.")
