@@ -124,22 +124,39 @@ def process_single_file(args):
 
 def wrapper(args):
     """Worker function to process and save data directly to disk."""
-    return process_single_file(args)  # Must be a picklable function
+    fname = args[0]
+    print(f"Worker started for {fname}", flush=True)  # Debug start
+    try:
+        result = process_single_file(args)
+        print(f"Worker finished for {fname}", flush=True)  # Debug end
+        return result
+    except Exception as e:
+        print(f"Worker failed on {fname}: {e}", flush=True)
+        return None
 
 
-def process_nch_data(all_files, data_dir, select_ch, annotation_mapping, num_workers=8):
-    """Process EEG files in parallel while managing memory usage."""
-    print(f"Processing {len(all_files)} files with {num_workers} CPU cores...")
 
+def process_nch_data(all_files, data_dir, select_ch, annotation_mapping, num_workers=2):
+    """Process EEG files in parallel in small batches."""
+    print(f"Processing {len(all_files)} files with {num_workers} CPU cores...", flush=True)
+
+    batch_size = max(5, len(all_files) // num_workers)  # Reduce batch size
+    results = []
+    
     with mp.Pool(num_workers) as pool:
-        results = list(tqdm(
-            pool.imap(wrapper, [(fname, data_dir, select_ch, annotation_mapping) for fname in all_files]),
-            total=len(all_files),
-            desc="Processing EEG files"
-        ))
+        for i in range(0, len(all_files), batch_size):
+            batch = all_files[i:i+batch_size]
+            batch_results = list(tqdm(
+                pool.imap(wrapper, [(fname, data_dir, select_ch, annotation_mapping) for fname in batch]),
+                total=len(batch),
+                desc=f"Processing batch {i//batch_size + 1}"
+            ))
+            results.extend(batch_results)
+            gc.collect()  # Free memory after each batch
 
-    final_data = [res for res in results if res is not None]
+    final_data = [r for r in results if r is not None]
     return final_data
+
 
 
 
