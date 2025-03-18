@@ -70,19 +70,19 @@ sampler = WeightedRandomSampler(sample_weights, len(sample_weights), replacement
 train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, sampler=sampler)
 val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
-# Load Longformer model with LoRA fine-tuning
+# # Load Longformer model with LoRA fine-tuning
 model = LongformerForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=NUM_CLASSES)
 
-# 🔥 Allow fine-tuning of classifier head
-lora_config = LoraConfig(
-    r=8,
-    lora_alpha=16,
-    lora_dropout=0.1,
-    target_modules=["query", "value"]
-)
-model = get_peft_model(model, lora_config)
-for param in model.classifier.parameters():
-    param.requires_grad = True  # 🔥 Fine-tune classifier head
+# # 🔥 Allow fine-tuning of classifier head
+# lora_config = LoraConfig(
+#     r=8,
+#     lora_alpha=16,
+#     lora_dropout=0.1,
+#     target_modules=["query", "value"]
+# )
+# model = get_peft_model(model, lora_config)
+# for param in model.classifier.parameters():
+#     param.requires_grad = True  # 🔥 Fine-tune classifier head
 
 model.to(DEVICE)
 
