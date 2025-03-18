@@ -12,7 +12,7 @@ import numpy as np
 MODEL_NAME = "allenai/longformer-base-4096"
 NUM_CLASSES = 2  # Binary classification (W vs. N3)
 BATCH_SIZE = 16
-EPOCHS = 20
+EPOCHS = 10
 LEARNING_RATE = 1e-5
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
