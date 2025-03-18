@@ -55,12 +55,16 @@ val_data = data[split_idx:]
 train_dataset = SleepDataset(train_data)
 val_dataset = SleepDataset(val_data)
 
-# Handle class imbalance using WeightedRandomSampler
+# 🔥 FIXED: Correct class weight calculation
 labels = train_dataset.labels
 class_counts = np.bincount(labels)
-class_weights = 1.0 / class_counts
-sample_weights = np.array([class_weights[label] for label in labels])
-sampler = WeightedRandomSampler(sample_weights, len(sample_weights))
+total_samples = sum(class_counts)
+class_weights = torch.tensor([total_samples / c for c in class_counts], dtype=torch.float).to(DEVICE)
+
+# 🔥 FIXED: Use better-balanced sampling
+sampling_ratio = class_counts[1] / class_counts[0]  # N3 / W ratio
+sample_weights = np.array([class_weights[label] * sampling_ratio for label in labels])
+sampler = WeightedRandomSampler(sample_weights, len(sample_weights), replacement=True)
 
 train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, sampler=sampler)
 val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
@@ -68,19 +72,21 @@ val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
 # Load Longformer model with LoRA fine-tuning
 model = LongformerForSequenceClassification.from_pretrained(MODEL_NAME, num_labels=NUM_CLASSES)
 
-# Apply LoRA to attention layers
+# 🔥 FIXED: Also fine-tune the classifier head
 lora_config = LoraConfig(
     r=8,  # Rank
     lora_alpha=16,
     lora_dropout=0.1,
-    target_modules=["query", "value"]
+    target_modules=["query", "value", "classifier.dense"]  # 🔥 ADDED classifier head tuning
 )
 model = get_peft_model(model, lora_config)
 model.to(DEVICE)
 
 # Define optimizer and loss function
 optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE)
-criterion = nn.CrossEntropyLoss(weight=torch.tensor(class_weights, dtype=torch.float).to(DEVICE))
+
+# 🔥 FIXED: Add label smoothing
+criterion = nn.CrossEntropyLoss(weight=class_weights, label_smoothing=0.1)
 
 # Training function
 def train(model, train_loader, val_loader, epochs):
@@ -95,7 +101,9 @@ def train(model, train_loader, val_loader, epochs):
 
             optimizer.zero_grad()
             outputs = model(input_ids, attention_mask=attention_mask)
-            loss = criterion(outputs.logits, labels.long())  # Ensure labels are long dtype
+
+            # 🔥 FIXED: Ensure correct label dtype
+            loss = criterion(outputs.logits, labels.to(torch.int64))  
             loss.backward()
             optimizer.step()
             total_loss += loss.item()
