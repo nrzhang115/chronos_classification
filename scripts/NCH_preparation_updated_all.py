@@ -161,7 +161,7 @@ def process_nch_data(all_files, data_dir, select_ch, annotation_mapping, output_
             batch_results = [r for r in batch_results if r is not None]
 
             if batch_results:
-                print(f"Sample batch entry before saving: {batch_results[0]}")
+                
                 save_to_arrow(batch_results, batch_output_path)  # Save each batch separately
 
 
@@ -174,6 +174,8 @@ def process_nch_data(all_files, data_dir, select_ch, annotation_mapping, output_
 
 
 
+
+import pyarrow as pa
 
 def save_to_arrow(data_list, output_dir):
     """Save the prepared data to an Arrow file."""
@@ -188,11 +190,23 @@ def save_to_arrow(data_list, output_dir):
         return
 
     try:
+        # Convert lists into Arrow-compatible format
+        formatted_data = []
+        for entry in data_list:
+            formatted_entry = {
+                "file_name": entry["file_name"],
+                "eeg_epochs": pa.array(entry["eeg_epochs"]),
+                "labels": pa.array(entry["labels"], type=pa.string())  # Force string type for labels
+            }
+            formatted_data.append(formatted_entry)
+
         path = os.path.join(output_dir, 'nch_sleep_data_all.arrow')
-        ArrowWriter(compression="lz4").write_to_file(data_list, path=path)
+        ArrowWriter(compression="lz4").write_to_file(formatted_data, path=path)
         print(f"Data saved to {path}")
+
     except Exception as e:
         print(f"Error while saving to Arrow: {e}")
+
 
 
 
