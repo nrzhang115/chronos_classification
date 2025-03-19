@@ -112,6 +112,11 @@ def process_single_file(args):
             "file_name": fname,
             "labels": labels,
         }
+        
+        if not isinstance(entry["eeg_epochs"], list) or not isinstance(entry["labels"], list):
+            print(f"Invalid data format in {fname}. Skipping.")
+            return None
+
 
         raw.close()
         del raw, eeg_signal, epochs
@@ -141,7 +146,7 @@ def process_nch_data(all_files, data_dir, select_ch, annotation_mapping, output_
     """Process EEG files in parallel in small batches."""
     print(f"Processing {len(all_files)} files with {num_workers} CPU cores...", flush=True)
 
-    batch_size = max(5, len(all_files) // num_workers)  # Reduce batch size
+    batch_size = max(2, len(all_files) // num_workers)  # Reduce batch size 5->2
     results = []
     
     with mp.Pool(num_workers, maxtasksperchild=5) as pool:
@@ -156,7 +161,9 @@ def process_nch_data(all_files, data_dir, select_ch, annotation_mapping, output_
             batch_results = [r for r in batch_results if r is not None]
 
             if batch_results:
+                print(f"Sample batch entry before saving: {batch_results[0]}")
                 save_to_arrow(batch_results, batch_output_path)  # Save each batch separately
+
 
             gc.collect()  # Free memory after each batch
 
@@ -173,9 +180,20 @@ def save_to_arrow(data_list, output_dir):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    path = os.path.join(output_dir, 'nch_sleep_data_all.arrow')
-    ArrowWriter(compression="lz4").write_to_file(data_list, path=path)
-    print(f"Data saved to {path}")
+    # Remove None entries
+    data_list = [d for d in data_list if d is not None]
+
+    if not data_list:
+        print("Warning: No valid data to save. Skipping.")
+        return
+
+    try:
+        path = os.path.join(output_dir, 'nch_sleep_data_all.arrow')
+        ArrowWriter(compression="lz4").write_to_file(data_list, path=path)
+        print(f"Data saved to {path}")
+    except Exception as e:
+        print(f"Error while saving to Arrow: {e}")
+
 
 
 def main():
