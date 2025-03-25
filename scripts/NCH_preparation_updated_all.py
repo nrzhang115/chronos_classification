@@ -8,6 +8,7 @@ from mne.io import read_raw_edf
 import sleep_study as ss
 import gc
 import pandas as pd
+import pyarrow as pa
 
 EPOCH_SEC_SIZE = ss.data.EPOCH_SEC_SIZE  # 30 seconds
 TARGET_SAMPLING_RATE = ss.info.REFERENCE_FREQ  # 100Hz
@@ -127,55 +128,62 @@ def process_single_file(args):
     except Exception as e:
         print(f"Error processing {fname}: {e}")
         return None
+    
+def chunkify(lst, n):
+    """Split list `lst` into `n` approximately equal parts."""
+    return [lst[i::n] for i in range(n)]
+
 
 def wrapper(args):
-    """Worker function to process and save data directly to disk."""
-    fname = args[0]
-    print(f"Worker started for {fname}", flush=True)  # Debug start
-    try:
-        result = process_single_file(args)
-        print(f"Worker finished for {fname}", flush=True)  # Debug end
-        return result
-    except Exception as e:
-        print(f"Worker failed on {fname}: {e}", flush=True)
+    """Worker function that processes a chunk of files and writes to Arrow."""
+    file_list, data_dir, select_ch, annotation_mapping, worker_id, output_dir = args
+    results = []
+
+    for fname in file_list:
+        print(f"[Worker {worker_id}] Processing {fname}", flush=True)
+        result = process_single_file((fname, data_dir, select_ch, annotation_mapping))
+        if result:
+            results.append(result)
+
+    if results:
+        output_file = os.path.join(output_dir, f"nch_worker_{worker_id}.arrow")
+        save_to_arrow(results, output_file)
+        print(f"[Worker {worker_id}] Saved {len(results)} entries to {output_file}")
+        return output_file
+    else:
+        print(f"[Worker {worker_id}] No valid results.")
         return None
 
 
 
+
 def process_nch_data(all_files, data_dir, select_ch, annotation_mapping, output_dir, num_workers=2):
-    """Process EEG files in parallel in small batches."""
+    """Distribute EEG files across workers and process in parallel."""
     print(f"Processing {len(all_files)} files with {num_workers} CPU cores...", flush=True)
 
-    batch_size = max(2, len(all_files) // num_workers)  # Reduce batch size 5->2
-    results = []
-    
-    with mp.Pool(num_workers, maxtasksperchild=5) as pool:
-        for i in range(0, len(all_files), batch_size):
-            batch = all_files[i:i+batch_size]
-            batch_results = list(tqdm(
-                pool.imap(wrapper, [(fname, data_dir, select_ch, annotation_mapping) for fname in batch]),
-                total=len(batch),
-                desc=f"Processing batch {i//batch_size + 1}"
-            ))
-            batch_output_path = os.path.join(output_dir, f"nch_sleep_data_batch_{i}.arrow")
-            batch_results = [r for r in batch_results if r is not None]
+    file_chunks = chunkify(all_files, num_workers)
 
-            if batch_results:
-                
-                save_to_arrow(batch_results, batch_output_path)  # Save each batch separately
+    args_list = [
+        (file_chunks[i], data_dir, select_ch, annotation_mapping, i, output_dir)
+        for i in range(num_workers)
+    ]
 
+    with mp.Pool(num_workers, maxtasksperchild=1) as pool:
+        output_files = list(tqdm(
+            pool.imap(wrapper, args_list),
+            total=num_workers,
+            desc="Processing in parallel"
+        ))
 
-            gc.collect()  # Free memory after each batch
+    print("All workers finished.")
+    print("Output Arrow files:")
+    for path in output_files:
+        if path:
+            print(f" - {path}")
 
-
-    final_data = [r for r in results if r is not None]
-    return final_data
+    return output_files
 
 
-
-
-
-import pyarrow as pa
 
 def save_to_arrow(data_list, output_dir):
     """Save the prepared data to an Arrow file."""
@@ -237,7 +245,7 @@ def main():
         print("No data prepared. Exiting.")
         return
 
-    save_to_arrow(final_data_list, args.output_dir)
+    # save_to_arrow(final_data_list, args.output_dir)
 
 
 
