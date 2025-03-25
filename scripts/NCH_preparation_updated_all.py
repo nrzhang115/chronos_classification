@@ -136,7 +136,7 @@ def chunkify(lst, n):
 
 def wrapper(args):
     file_list, data_dir, select_ch, annotation_mapping, worker_id, output_dir = args
-    batch_size = 300
+    batch_size = 100
     results = []
     batch_index = 0
 
