@@ -109,10 +109,12 @@ def process_single_file(args):
         # Convert EEG data to lists before returning (avoid large numpy arrays)
         entry = {
             # "eeg_epochs": [epoch.tolist() for epoch in epochs],  
-            "eeg_epochs": [np.array(epoch, dtype=np.float32).astype(np.float16).tolist() for epoch in epochs],
+            "eeg_epochs": [[float(np.float16(x)) for x in epoch] for epoch in epochs],
             "file_name": fname,
             "labels": labels,
         }
+        print(f"Sample eeg_epoch[0][0]: {entry['eeg_epochs'][0][0]} ({type(entry['eeg_epochs'][0][0])})")
+
         
         if not isinstance(entry["eeg_epochs"], list) or not isinstance(entry["labels"], list):
             print(f"Invalid data format in {fname}. Skipping.")
