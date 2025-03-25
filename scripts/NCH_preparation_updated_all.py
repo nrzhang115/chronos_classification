@@ -135,24 +135,37 @@ def chunkify(lst, n):
 
 
 def wrapper(args):
-    """Worker function that processes a chunk of files and writes to Arrow."""
     file_list, data_dir, select_ch, annotation_mapping, worker_id, output_dir = args
+    batch_size = 300
     results = []
+    batch_index = 0
 
-    for fname in file_list:
-        print(f"[Worker {worker_id}] Processing {fname}", flush=True)
-        result = process_single_file((fname, data_dir, select_ch, annotation_mapping))
-        if result:
-            results.append(result)
+    for i, fname in enumerate(file_list):
+        results.append((i, fname))  # store index + name
 
-    if results:
-        output_file = os.path.join(output_dir, f"nch_worker_{worker_id}.arrow")
-        save_to_arrow(results, output_file)
-        print(f"[Worker {worker_id}] Saved {len(results)} entries to {output_file}")
-        return output_file
-    else:
-        print(f"[Worker {worker_id}] No valid results.")
-        return None
+    total_files = len(results)
+    file_batches = [results[i:i+batch_size] for i in range(0, total_files, batch_size)]
+
+    for batch_index, batch in enumerate(file_batches):
+        out_path = os.path.join(output_dir, f"nch_worker_{worker_id}_batch_{batch_index}.arrow")
+        
+        if os.path.exists(out_path):
+            print(f"[Worker {worker_id}] ⏭️ Skipping batch {batch_index} (already saved)")
+            continue
+
+        batch_results = []
+        for i, fname in batch:
+            print(f"[Worker {worker_id}] Processing {fname}", flush=True)
+            result = process_single_file((fname, data_dir, select_ch, annotation_mapping))
+            if result:
+                batch_results.append(result)
+
+        if batch_results:
+            save_to_arrow(batch_results, out_path)
+            print(f"[Worker {worker_id}] Saved batch {batch_index} ({len(batch_results)} files) to {out_path}")
+        else:
+            print(f"[Worker {worker_id}] No valid results in batch {batch_index}")
+
 
 
 
@@ -185,35 +198,22 @@ def process_nch_data(all_files, data_dir, select_ch, annotation_mapping, output_
 
 
 
-def save_to_arrow(data_list, output_dir):
-    """Save the prepared data to an Arrow file."""
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    # Remove None entries
-    data_list = [d for d in data_list if d is not None]
-
-    if not data_list:
-        print("Warning: No valid data to save. Skipping.")
-        return
-
+def save_to_arrow(data_list, file_path):
+    """Save a list of EEG entries to an Arrow file."""
     try:
-        # Convert lists into Arrow-compatible format
         formatted_data = []
         for entry in data_list:
             formatted_entry = {
                 "file_name": entry["file_name"],
                 "eeg_epochs": pa.array(entry["eeg_epochs"]),
-                "labels": pa.array(entry["labels"], type=pa.string())  # Force string type for labels
+                "labels": pa.array(entry["labels"], type=pa.string())
             }
             formatted_data.append(formatted_entry)
 
-        path = os.path.join(output_dir, 'nch_sleep_data_all.arrow')
-        ArrowWriter(compression="lz4").write_to_file(formatted_data, path=path)
-        print(f"Data saved to {path}")
-
+        ArrowWriter(compression="lz4").write_to_file(formatted_data, path=file_path)
     except Exception as e:
-        print(f"Error while saving to Arrow: {e}")
+        print(f"Error saving {file_path}: {e}")
+
 
 
 
@@ -222,7 +222,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data_dir", type=str, default="/srv/scratch/speechdata/sleep_data/NCH/nch",
                         help="Directory with PSG files.")
-    parser.add_argument("--output_dir", type=str, default="/srv/scratch/z5298768/chronos_classification/prepare_time_series/C4-M1_updated",
+    parser.add_argument("--output_dir", type=str, default="/srv/scratch/z5298768/chronos_classification/prepare_time_series/C4-M1_updated_all",
                         help="Directory to save the arrow file.")
     parser.add_argument("--select_ch", type=str, default="EEG C4-M1",
                         help="EEG channel to select")
