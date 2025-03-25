@@ -203,18 +203,38 @@ def process_nch_data(all_files, data_dir, select_ch, annotation_mapping, output_
 def save_to_arrow(data_list, file_path):
     """Save a list of EEG entries to an Arrow file."""
     try:
-        formatted_data = []
-        for entry in data_list:
-            formatted_entry = {
-                "file_name": entry["file_name"],
-                "eeg_epochs": pa.array(entry["eeg_epochs"]),
-                "labels": pa.array(entry["labels"], type=pa.string())
-            }
-            formatted_data.append(formatted_entry)
+        # Flatten to columns
+        file_names = []
+        eeg_epochs = []
+        labels = []
 
-        ArrowWriter(compression="lz4").write_to_file(formatted_data, path=file_path)
+        for entry in data_list:
+            file_names.append(entry["file_name"])
+            # Force all epochs to be lists of floats
+            eeg = [[float(x) for x in epoch] for epoch in entry["eeg_epochs"]]
+            eeg_epochs.append(eeg)
+            labels.append(entry["labels"])
+            
+            # Debug
+            print(f"eeg shape: {len(eeg)} x {len(eeg[0])} from file {entry['file_name']}")
+
+        # Define a nested list-of-floats type explicitly
+        list_of_floats = pa.list_(pa.float32())
+        nested_list_type = pa.list_(list_of_floats)
+
+        table = pa.table({
+            "file_name": file_names,
+            "eeg_epochs": pa.array(eeg_epochs, type=nested_list_type),
+            "labels": pa.array(labels, type=pa.list_(pa.string()))
+        })
+
+        with pa.OSFile(file_path, 'wb') as sink:
+            with pa.ipc.new_file(sink, table.schema) as writer:
+                writer.write(table)
+
     except Exception as e:
         print(f"Error saving {file_path}: {e}")
+
 
 
 
