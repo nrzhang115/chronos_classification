@@ -21,14 +21,19 @@ class ChronosEpochTokenizer:
 
     def preprocess_entry(self, eeg_epochs: List[List[float]], labels: List[str], file_name: str) -> List[dict]:
         tokenized_epochs = []
+
         for epoch, label in zip(eeg_epochs, labels):
-            input_ids, attention_mask = self.tokenize_epoch(epoch)
-            tokenized_epochs.append({
-                "file_name": file_name,
-                "input_ids": input_ids,
-                "attention_mask": attention_mask,
-                "label": label,
-            })
+            try:
+                input_ids, attention_mask = self.tokenize_epoch(epoch)
+                tokenized_epochs.append({
+                    "file_name": file_name,
+                    "input_ids": input_ids,
+                    "attention_mask": attention_mask,
+                    "label": label,
+                })
+            except Exception as e:
+                print(f"⚠️ Skipping epoch from {file_name} due to error: {e}")
+
         return tokenized_epochs
 
     def tokenize_epoch(self, epoch: List[float]) -> tuple:
@@ -45,7 +50,7 @@ class ChronosEpochTokenizer:
             labels = row.get("labels", ["unknown"] * len(eeg_epochs))
 
             if len(labels) != len(eeg_epochs):
-                print(f"Label mismatch in {file_name}, padding labels.")
+                print(f"⚠️ Label mismatch in {file_name}, padding labels.")
                 labels = labels[:len(eeg_epochs)] + ["unknown"] * (len(eeg_epochs) - len(labels))
 
             yield from self.preprocess_entry(eeg_epochs, labels, file_name)
@@ -53,7 +58,7 @@ class ChronosEpochTokenizer:
 
 def main_tokenize_all_batches():
     input_dir = "/srv/scratch/z5298768/chronos_classification/prepare_time_series/C4-M1_updated_all"
-    output_dir = "/srv/scratch/z5298768/chronos_classification/tokenization_updated/tokenized_batches"
+    output_dir = "/srv/scratch/z5298768/chronos_classification/tokenized_batches"
     os.makedirs(output_dir, exist_ok=True)
 
     context_length = 512
@@ -85,15 +90,21 @@ def main_tokenize_all_batches():
         output_path = os.path.join(output_dir, f"{base}.pt")
 
         # Skip already-processed files
-        if os.path.exists(output_path):
+        if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
             print(f"Skipping already tokenized: {output_path}")
             continue
 
         try:
             dataset = ChronosEpochTokenizer(path, tokenizer, token_length=context_length)
             tokenized_data = [item for item in dataset]
+
+            if not tokenized_data:
+                print(f"No valid tokenized entries in {base}. Skipping save.")
+                continue
+
             torch.save(tokenized_data, output_path)
-            print(f"Tokenized and saved: {output_path}")
+            print(f"Tokenized {len(tokenized_data)} epochs → {output_path}")
+
         except Exception as e:
             print(f"Failed to process {path}: {e}")
 
