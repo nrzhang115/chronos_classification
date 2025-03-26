@@ -80,7 +80,7 @@ class ChronosEpochTokenizer:
 
 def main_tokenization():
     # Input and output paths
-    arrow_file_path = "/srv/scratch/z5298768/chronos_classification/prepare_time_seires/C4-M1_updated/nch_sleep_data_selected.arrow"
+    arrow_file_path = "/srv/scratch/z5298768/chronos_classification/prepare_time_series/nch_sleep_data_all.arrow"
     output_dir = "/srv/scratch/z5298768/chronos_classification/tokenization_updated"
     os.makedirs(output_dir, exist_ok=True)
     
@@ -143,7 +143,7 @@ def main_tokenization():
     for item in tqdm(dataset, desc="Tokenizing epochs", unit="epoch"):
         tokenized_data.append(item)
 
-    tokenized_output_path = os.path.join(output_dir, "tokenized_epochs.pt")
+    tokenized_output_path = os.path.join(output_dir, "tokenized_epochs_all.pt")
     torch.save(tokenized_data, tokenized_output_path)
 
     print(f"Tokenized epochs saved at: {tokenized_output_path}")
