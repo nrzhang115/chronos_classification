@@ -6,6 +6,7 @@ import numpy as np
 from typing import List
 from chronos import ChronosConfig, ChronosTokenizer
 from tqdm import tqdm
+import pandas as pd 
 
 class ChronosEpochTokenizer:
     """
@@ -21,15 +22,22 @@ class ChronosEpochTokenizer:
     ) -> None:
         assert os.path.exists(arrow_file_path), f"Arrow file not found: {arrow_file_path}"
 
-        # Open the Arrow file using IPC
+        # Open the Arrow file and read all batches
         with pa.memory_map(arrow_file_path, "r") as source:
             reader = ipc.RecordBatchFileReader(source)
-            record_batch = reader.get_batch(0)
-            self.dataset = record_batch.to_pandas()  # Load data into a DataFrame
+
+            # 🔁 Load all batches
+            tables = []
+            for i in range(reader.num_record_batches):
+                batch = reader.get_batch(i)
+                tables.append(batch.to_pandas())
+
+            self.dataset = pd.concat(tables, ignore_index=True)
 
         self.tokenizer = tokenizer
         self.token_length = token_length
         self.np_dtype = np_dtype
+
 
     def preprocess_entry(self, eeg_epochs: List[List[float]], labels: List[str], file_name: str) -> List[dict]:
         """
