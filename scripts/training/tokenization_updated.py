@@ -26,7 +26,7 @@ class ChronosEpochTokenizer:
         with pa.memory_map(arrow_file_path, "r") as source:
             reader = ipc.RecordBatchFileReader(source)
 
-            # 🔁 Load all batches
+            # Load all batches
             tables = []
             for i in range(reader.num_record_batches):
                 batch = reader.get_batch(i)
@@ -130,12 +130,12 @@ def main_tokenization():
         model_type=model_type,          # Set to "classification"
     ).create_tokenizer()
     
-    if hasattr(tokenizer, "id_to_token"):  
-        print("Token 3 corresponds to:", tokenizer.id_to_token(3))
-    elif hasattr(tokenizer, "decode"):
-        print("Token 3 corresponds to:", tokenizer.decode([3]))
-    else:
-        print("No method found for converting token 3.")
+    # if hasattr(tokenizer, "id_to_token"):  
+    #     print("Token 3 corresponds to:", tokenizer.id_to_token(3))
+    # elif hasattr(tokenizer, "decode"):
+    #     print("Token 3 corresponds to:", tokenizer.decode([3]))
+    # else:
+    #     print("No method found for converting token 3.")
 
 
     # Initialize dataset
@@ -146,15 +146,30 @@ def main_tokenization():
     )
 
 
-    # Tokenize and save with a progress bar
+    # Chunked tokenization
+    chunk_size = 500_000
     tokenized_data = []
-    for item in tqdm(dataset, desc="Tokenizing epochs", unit="epoch"):
+    chunk_index = 0
+    total_count = 0
+
+    for i, item in enumerate(tqdm(dataset, desc="Tokenizing epochs", unit="epoch")):
         tokenized_data.append(item)
+        total_count += 1
 
-    tokenized_output_path = os.path.join(output_dir, "tokenized_epochs_all.pt")
-    torch.save(tokenized_data, tokenized_output_path)
+        if len(tokenized_data) >= chunk_size:
+            chunk_path = os.path.join(output_dir, f"tokenized_chunk_{chunk_index}.pt")
+            torch.save(tokenized_data, chunk_path)
+            print(f"Saved chunk {chunk_index} with {len(tokenized_data)} entries to {chunk_path}")
+            tokenized_data = []
+            chunk_index += 1
 
-    print(f"Tokenized epochs saved at: {tokenized_output_path}")
+    # Save remaining data
+    if tokenized_data:
+        chunk_path = os.path.join(output_dir, f"tokenized_chunk_{chunk_index}.pt")
+        torch.save(tokenized_data, chunk_path)
+        print(f"Saved final chunk {chunk_index} with {len(tokenized_data)} entries to {chunk_path}")
+
+    print(f"Tokenization complete. Total tokenized epochs: {total_count}")
 
 
 if __name__ == "__main__":
