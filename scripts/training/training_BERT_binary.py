@@ -180,7 +180,7 @@ else:
 
 # ======= Setup =======
 label_mapping = { "W": 0, "N3": 1 }
-chunk_path = "/srv/scratch/z5298768/chronos_classification/tokenization_updated/merged_tokenized_chunk_0_to_9.pt"
+chunk_path = "/srv/scratch/z5298768/chronos_classification/tokenization_updated/merged_tokenized_chunk_10_to_12.pt"
 
 # ======= Load and filter chunk 0 =======
 print(f"Loading {chunk_path}")
