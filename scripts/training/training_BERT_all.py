@@ -16,6 +16,10 @@ from transformers import AutoModelForSequenceClassification
 import transformers
 print("Transformers version (runtime):", transformers.__version__)
 print("Transformers path:", transformers.__file__)
+from transformers import TrainingArguments
+print("TrainingArguments class:", TrainingArguments)
+print("Defined in:", TrainingArguments.__module__)
+
 
 
 # Set device
