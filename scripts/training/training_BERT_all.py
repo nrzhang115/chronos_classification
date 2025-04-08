@@ -1,57 +1,40 @@
+import os
 import torch
-import torch.nn as nn
-import torch.optim as optim
-from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
-from transformers import BertForSequenceClassification, get_scheduler
-from sklearn.model_selection import train_test_split
-from sklearn.utils.class_weight import compute_class_weight
-from sklearn.metrics import classification_report, confusion_matrix
 import numpy as np
+from torch.utils.data import Dataset
+from transformers import (
+    BertForSequenceClassification,
+    BertTokenizerFast,
+    Trainer,
+    TrainingArguments,
+    EvalPrediction,
+)
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+from sklearn.utils.class_weight import compute_class_weight
+from peft import get_peft_model, LoraConfig, TaskType
+from transformers import AutoModelForSequenceClassification
 
-# Check if GPU is available
+# Set device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-if torch.cuda.is_available():
-    print(f"Training is running on GPU: {torch.cuda.get_device_name(0)}")
-else:
-    print("Training is running on CPU only.")
+print(f"Using device: {device}")
 
-# Define sleep stage labels (excluding "unknown")
-label_mapping = {
-    "W": 0,
-    "N1": 1,
-    "N2": 2,
-    "N3": 3,
-    "R": 4,
-}
+# Sleep stage label mapping (excluding "unknown")
+label_mapping = {"W": 0, "N1": 1, "N2": 2, "N3": 3, "R": 4}
+id2label = {v: k for k, v in label_mapping.items()}
 
-# Load the tokenized dataset
-data = torch.load("/srv/scratch/z5298768/chronos_classification/tokenization_updated/tokenized_epochs.pt")
+# Load the large pre-tokenized dataset from disk
+dataset_path = "/srv/scratch/z5298768/chronos_classification/tokenization_updated/merged_tokenized_chunk_0_to_9.pt"
+data = torch.load(dataset_path, map_location='cpu')
 
-# Convert labels using the mapping
+# Filter and remap labels
 filtered_data = [sample for sample in data if sample["label"] in label_mapping]
 
-# Split dataset (80% train, 20% validation)
-train_data, val_data = train_test_split(filtered_data, test_size=0.2, random_state=42)
-
-# Process training data
-train_input_ids = torch.stack([sample["input_ids"] for sample in train_data])
-train_attention_mask = torch.stack([sample["attention_mask"] for sample in train_data])
-train_labels = torch.tensor([label_mapping[sample["label"]] for sample in train_data], dtype=torch.long)
-
-# Process validation data
-val_input_ids = torch.stack([sample["input_ids"] for sample in val_data])
-val_attention_mask = torch.stack([sample["attention_mask"] for sample in val_data])
-val_labels = torch.tensor([label_mapping[sample["label"]] for sample in val_data], dtype=torch.long)
-
-# Define dataset class
+# Custom Dataset
 class SleepStageDataset(Dataset):
-    def __init__(self, input_ids, attention_mask, labels):
-        self.input_ids = input_ids
-        self.attention_mask = attention_mask
-        self.labels = labels
-
-    def __len__(self):
-        return len(self.labels)
+    def __init__(self, data, label_mapping):
+        self.input_ids = torch.stack([sample["input_ids"] for sample in data])
+        self.attention_mask = torch.stack([sample["attention_mask"] for sample in data])
+        self.labels = torch.tensor([label_mapping[sample["label"]] for sample in data], dtype=torch.long)
 
     def __getitem__(self, idx):
         return {
@@ -60,125 +43,110 @@ class SleepStageDataset(Dataset):
             "labels": self.labels[idx],
         }
 
-# Create train and validation datasets
-train_dataset = SleepStageDataset(train_input_ids, train_attention_mask, train_labels)
-val_dataset = SleepStageDataset(val_input_ids, val_attention_mask, val_labels)
+    def __len__(self):
+        return len(self.labels)
 
-# Compute class weights using sklearn
-unique_labels = torch.unique(train_labels).cpu().numpy()
-class_weights = compute_class_weight(class_weight="balanced", classes=unique_labels, y=train_labels.cpu().numpy())
+# Split data (do this before instantiating Dataset)
+from sklearn.model_selection import train_test_split
+train_data, val_data = train_test_split(filtered_data, test_size=0.2, random_state=42)
+
+train_dataset = SleepStageDataset(train_data, label_mapping)
+val_dataset = SleepStageDataset(val_data, label_mapping)
+
+# Compute class weights
+train_labels = train_dataset.labels
+class_weights = compute_class_weight(class_weight="balanced", classes=np.unique(train_labels.numpy()), y=train_labels.numpy())
 class_weights = torch.tensor(class_weights, dtype=torch.float).to(device)
 
-# Define **oversampling** using WeightedRandomSampler
-class_counts = torch.bincount(train_labels)  # Get class distribution
-max_samples = class_counts.max().item()  # Get max class size
+# Load model
+model = BertForSequenceClassification.from_pretrained(
+    "bert-base-uncased",
+    num_labels=len(label_mapping),
+    id2label=id2label,
+    label2id=label_mapping
+).to(device)
 
-# Compute sample weights
-sample_weights = torch.zeros_like(train_labels, dtype=torch.float)
-for class_idx in range(len(class_counts)):
-    sample_weights[train_labels == class_idx] = max_samples / class_counts[class_idx].item()
-
-# Create WeightedRandomSampler
-sampler = WeightedRandomSampler(sample_weights, num_samples=len(train_dataset), replacement=True)
-
-# Create train and validation dataloaders
-batch_size = 16
-train_dataloader = DataLoader(train_dataset, batch_size=batch_size, sampler=sampler, num_workers=8, pin_memory=True)
-val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=True)
-
-# Load pre-trained BERT model
-num_classes = len(label_mapping)
-model = BertForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=num_classes)
-model.to(device)
-
-# Define standard loss function
-criterion = nn.CrossEntropyLoss()
-
-# Define optimizer with weight decay
-learning_rate = 2e-5
-optimizer = optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=0.01)
-
-# Define learning rate scheduler
-num_training_steps = len(train_dataloader) * 20  # 20 epochs
-lr_scheduler = get_scheduler(
-    "linear", optimizer=optimizer, num_warmup_steps=0, num_training_steps=num_training_steps
+# Configure LoRA
+lora_config = LoraConfig(
+    r=8,  # Rank: usually 4–16
+    lora_alpha=16,
+    target_modules=["query", "value"],  # attention projection layers
+    lora_dropout=0.1,
+    bias="none",
+    task_type=TaskType.SEQ_CLS  # sequence classification
 )
 
-# Training loop with early stopping
-epochs = 20
-early_stopping_patience = 3
-best_val_loss = float("inf")
-patience_counter = 0
+# Apply LoRA to the model
+model = get_peft_model(model, lora_config)
+model.print_trainable_parameters()  # optional: see how few parameters you're tuning
 
-for epoch in range(epochs):
-    model.train()
-    total_loss = 0
+# Move to device
+model.to(device)
 
-    for batch in train_dataloader:
-        input_ids = batch["input_ids"].to(device)
-        attention_mask = batch["attention_mask"].to(device)
-        labels = batch["labels"].to(device)
+# Use class weights in loss function
+def compute_loss(model, inputs, return_outputs=False):
+    labels = inputs.pop("labels")
+    outputs = model(**inputs)
+    logits = outputs.logits
+    loss_fn = torch.nn.CrossEntropyLoss(weight=class_weights)
+    loss = loss_fn(logits, labels)
+    return (loss, outputs) if return_outputs else loss
 
-        optimizer.zero_grad()
+# Metrics
+def compute_metrics(p: EvalPrediction):
+    preds = np.argmax(p.predictions, axis=1)
+    acc = accuracy_score(p.label_ids, preds)
+    report = classification_report(p.label_ids, preds, target_names=label_mapping.keys(), zero_division=0, output_dict=False)
+    print(report)
+    conf_matrix = confusion_matrix(p.label_ids, preds)
+    print("Confusion Matrix:\n", conf_matrix)
+    return {"accuracy": acc}
 
-        outputs = model(input_ids, attention_mask=attention_mask)
-        loss = criterion(outputs.logits, labels)
+# TrainingArguments with checkpointing and resuming
+output_dir = "./bert_sleep_allclass"
+training_args = TrainingArguments(
+    output_dir=output_dir,
+    evaluation_strategy="epoch",
+    save_strategy="epoch",
+    logging_dir=f"{output_dir}/logs",
+    learning_rate=2e-5,
+    per_device_train_batch_size=16,
+    per_device_eval_batch_size=16,
+    num_train_epochs=20,
+    weight_decay=0.01,
+    save_total_limit=2,
+    load_best_model_at_end=True,
+    metric_for_best_model="accuracy",
+    greater_is_better=True,
+    logging_steps=50,
+    fp16=torch.cuda.is_available(),  # Enable mixed precision if possible
+    push_to_hub=False,
+    report_to="none"
+)
 
-        loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)  # Gradient Clipping
-        optimizer.step()
-        lr_scheduler.step()
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=train_dataset,
+    eval_dataset=val_dataset,
+    compute_metrics=compute_metrics,
+    compute_loss=compute_loss,
+)
 
-        total_loss += loss.item()
+# Resume from checkpoint if exists
+last_checkpoint = None
+if os.path.isdir(output_dir) and any("checkpoint" in d for d in os.listdir(output_dir)):
+    checkpoints = [os.path.join(output_dir, d) for d in os.listdir(output_dir) if "checkpoint" in d]
+    last_checkpoint = max(checkpoints, key=os.path.getmtime)
+    print(f"Resuming training from checkpoint: {last_checkpoint}")
 
-    print(f"Epoch {epoch + 1}, Loss: {total_loss / len(train_dataloader)}")
+# Train model
+trainer.train(resume_from_checkpoint=last_checkpoint)
 
-    # ======= Validation =======
-    model.eval()
-    val_loss = 0
-    all_preds = []
-    all_labels = []
+# Save final full model
+trainer.save_model(f"{output_dir}/final_model")
 
-    with torch.no_grad():
-        for batch in val_dataloader:
-            input_ids = batch["input_ids"].to(device)
-            attention_mask = batch["attention_mask"].to(device)
-            labels = batch["labels"].to(device)
+# Also save just the LoRA adapters
+model.save_pretrained(f"{output_dir}/lora_only")
 
-            outputs = model(input_ids, attention_mask=attention_mask)
-            logits = outputs.logits
-            predictions = torch.argmax(logits, dim=1)
-
-            val_loss += criterion(logits, labels).item()
-            all_preds.extend(predictions.cpu().numpy())
-            all_labels.extend(labels.cpu().numpy())
-
-    avg_val_loss = val_loss / len(val_dataloader)
-    print(f"Epoch {epoch + 1}, Validation Loss: {avg_val_loss}")
-
-    # Check for early stopping
-    if avg_val_loss < best_val_loss:
-        best_val_loss = avg_val_loss
-        patience_counter = 0
-        torch.save(model.state_dict(), "bert_sleep_allclass_best.pth")  # Save the best model
-    else:
-        patience_counter += 1
-        if patience_counter >= early_stopping_patience:
-            print("Early stopping triggered!")
-            break
-
-    # Compute validation metrics
-    report = classification_report(all_labels, all_preds, target_names=list(label_mapping.keys()))
-    conf_matrix = confusion_matrix(all_labels, all_preds)
-
-    print("Validation Classification Report:\n", report)
-    print("Validation Confusion Matrix:\n", conf_matrix)
-
-    # Save validation results
-    with open("validation_results_allclass.txt", "w") as f:
-        f.write("Validation Classification Report:\n")
-        f.write(report + "\n")
-        f.write("Validation Confusion Matrix:\n")
-        f.write(np.array2string(conf_matrix))
-
-print("All-class classification model training complete and saved.")
+print("Training complete. Best model saved.")
