@@ -13,6 +13,10 @@ from sklearn.metrics import classification_report, confusion_matrix, accuracy_sc
 from sklearn.utils.class_weight import compute_class_weight
 from peft import get_peft_model, LoraConfig, TaskType
 from transformers import AutoModelForSequenceClassification
+import transformers
+print("Transformers version (runtime):", transformers.__version__)
+print("Transformers path:", transformers.__file__)
+
 
 # Set device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
