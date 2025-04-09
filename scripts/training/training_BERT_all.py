@@ -31,7 +31,7 @@ label_mapping = {"W": 0, "N1": 1, "N2": 2, "N3": 3, "R": 4}
 id2label = {v: k for k, v in label_mapping.items()}
 
 # Load the large pre-tokenized dataset from disk
-dataset_path = "/srv/scratch/z5298768/chronos_classification/tokenization_updated/merged_tokenized_chunk_0_to_9.pt"
+dataset_path = "/srv/scratch/z5298768/chronos_classification/tokenization_updated/merged_tokenized_chunk_10_to_12.pt"
 data = torch.load(dataset_path, map_location='cpu')
 
 # Filter and remap labels
