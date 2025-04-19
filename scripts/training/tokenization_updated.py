@@ -88,8 +88,8 @@ class ChronosEpochTokenizer:
 
 def main_tokenization():
     # Input and output paths
-    arrow_file_path = "/srv/scratch/z5298768/chronos_classification/prepare_time_series/nch_sleep_data_all.arrow"
-    output_dir = "/srv/scratch/z5298768/chronos_classification/tokenization_updated"
+    arrow_file_path = "/srv/scratch/z5298768/chronos_classification_local/prepare_time_series/nch_sleep_data_2hrs_all.arrow"
+    output_dir = "/srv/scratch/z5298768/chronos_classification_local/tokenization_updated_2hrs"
     os.makedirs(output_dir, exist_ok=True)
     
 
@@ -165,7 +165,7 @@ def main_tokenization():
 
     # Save remaining data
     if tokenized_data:
-        chunk_path = os.path.join(output_dir, f"tokenized_chunk_{chunk_index}.pt")
+        chunk_path = os.path.join(output_dir, f"2hrs_tokenized_chunk_{chunk_index}.pt")
         torch.save(tokenized_data, chunk_path)
         print(f"Saved final chunk {chunk_index} with {len(tokenized_data)} entries to {chunk_path}")
 
