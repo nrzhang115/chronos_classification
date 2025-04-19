@@ -97,14 +97,32 @@ def process_single_file(args):
 
         # raw.pick([select_ch])
         eeg_signal = raw.get_data(picks=[select_ch], units='uV')[0]  # Load only one channel
-        epochs = split_into_epochs(eeg_signal, TARGET_SAMPLING_RATE)
+        # epochs = split_into_epochs(eeg_signal, TARGET_SAMPLING_RATE)
+        # Extract mid 2hours
+        all_epochs = split_into_epochs(eeg_signal, TARGET_SAMPLING_RATE)
+        total_epochs = len(all_epochs)
+
+        # Extract middle 2 hours = 240 epochs
+        desired_window = 240
+        if total_epochs < desired_window:
+            print(f"File {fname} too short ({total_epochs} epochs). Skipping.")
+            return None
+
+        start = (total_epochs - desired_window) // 2
+        end = start + desired_window
+        epochs = all_epochs[start:end]
+
 
         if not epochs:
             print(f"Skipping {fname} due to lack of valid data.")
             return None
 
-        labels = extract_labels(annotation_mapping, fname, len(epochs))
-        labels = labels if labels else ["unknown"] * len(epochs)
+        # labels = extract_labels(annotation_mapping, fname, len(epochs))
+        # labels = labels if labels else ["unknown"] * len(epochs)
+        
+        labels = extract_labels(annotation_mapping, fname, total_epochs)
+        labels = labels[start:end] if labels else ["unknown"] * len(epochs)
+
 
         # Convert EEG data to lists before returning (avoid large numpy arrays)
         entry = {
