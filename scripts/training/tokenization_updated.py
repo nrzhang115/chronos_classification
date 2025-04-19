@@ -165,7 +165,7 @@ def main_tokenization():
 
     # Save remaining data
     if tokenized_data:
-        chunk_path = os.path.join(output_dir, f"2hrs_tokenized_chunk_{chunk_index}.pt")
+        chunk_path = os.path.join(output_dir, f"tokenized_chunk_{chunk_index}.pt")
         torch.save(tokenized_data, chunk_path)
         print(f"Saved final chunk {chunk_index} with {len(tokenized_data)} entries to {chunk_path}")
 

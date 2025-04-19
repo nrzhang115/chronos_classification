@@ -108,9 +108,10 @@ def process_single_file(args):
             print(f"File {fname} too short ({total_epochs} epochs). Skipping.")
             return None
 
-        start = (total_epochs - desired_window) // 2
-        end = start + desired_window
+        start = 0
+        end = desired_window
         epochs = all_epochs[start:end]
+
 
 
         if not epochs:
@@ -122,6 +123,9 @@ def process_single_file(args):
         
         labels = extract_labels(annotation_mapping, fname, total_epochs)
         labels = labels[start:end] if labels else ["unknown"] * len(epochs)
+        valid_labels = [l for l in labels if l not in ["unknown", "?"]]
+        print(f"{fname}: valid labels in first 2hrs = {len(valid_labels)}/{len(labels)}")
+
 
 
         # Convert EEG data to lists before returning (avoid large numpy arrays)
