@@ -262,7 +262,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data_dir", type=str, default="/srv/scratch/speechdata/sleep_data/NCH/nch",
                         help="Directory with PSG files.")
-    parser.add_argument("--output_dir", type=str, default="/srv/scratch/z5298768/chronos_classification/prepare_time_series/C4-M1_updated_all",
+    parser.add_argument("--output_dir", type=str, default="/srv/scratch/z5298768/chronos_classification_local/prepare_time_series/C4-M1_updated_all",
                         help="Directory to save the arrow file.")
     parser.add_argument("--select_ch", type=str, default="EEG C4-M1",
                         help="EEG channel to select")
