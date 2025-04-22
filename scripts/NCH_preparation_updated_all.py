@@ -102,17 +102,16 @@ def process_single_file(args):
         all_epochs = split_into_epochs(eeg_signal, TARGET_SAMPLING_RATE)
         total_epochs = len(all_epochs)
 
+
         # Extract middle 2 hours = 240 epochs
         desired_window = 240
         if total_epochs < desired_window:
             print(f"File {fname} too short ({total_epochs} epochs). Skipping.")
             return None
 
-        start = 0
-        end = desired_window
+        start = (total_epochs - desired_window) // 2
+        end = start + desired_window
         epochs = all_epochs[start:end]
-
-
 
         if not epochs:
             print(f"Skipping {fname} due to lack of valid data.")
