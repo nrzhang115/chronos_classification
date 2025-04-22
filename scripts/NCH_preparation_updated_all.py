@@ -81,7 +81,7 @@ def extract_labels(annotation_mapping, file_name, num_epochs):
 
 
 def process_single_file(args):
-    """Process a single EEG file with proper memory management."""
+    """Process a single EEG file and extract mid 2hrs of aligned EEG + labels."""
     fname, data_dir, select_ch, annotation_mapping = args
     psg_path = os.path.join(data_dir, fname)
 
@@ -90,86 +90,61 @@ def process_single_file(args):
         return None
 
     try:
-        raw = read_raw_edf(psg_path, preload=False)  # Avoid loading full file into memory
+        raw = read_raw_edf(psg_path, preload=False)
         if select_ch not in raw.info['ch_names']:
             print(f"Channel {select_ch} not found in {fname}. Skipping.")
             return None
 
-        # raw.pick([select_ch])
-        eeg_signal = raw.get_data(picks=[select_ch], units='uV')[0]  # Load only one channel
-        # epochs = split_into_epochs(eeg_signal, TARGET_SAMPLING_RATE)
-        # Extract mid 2hours
+        eeg_signal = raw.get_data(picks=[select_ch], units='uV')[0]
         all_epochs = split_into_epochs(eeg_signal, TARGET_SAMPLING_RATE)
-        total_epochs = len(all_epochs)
+        total_eeg_epochs = len(all_epochs)
 
+        labels_full = extract_labels(annotation_mapping, fname, total_eeg_epochs)
+        total_label_epochs = len(labels_full)
 
-        # Extract middle 2 hours = 240 epochs
+        # Align lengths just in case
+        n_epochs = min(total_eeg_epochs, total_label_epochs)
+        if n_epochs < 240:
+            print(f"{fname}: Not enough data ({n_epochs} epochs). Skipping.")
+            return None
+
+        # Middle 2 hours = 240 epochs
         desired_window = 240
-        if total_epochs < desired_window:
-            print(f"File {fname} too short ({total_epochs} epochs). Skipping.")
-            return None
-
-        start = (total_epochs - desired_window) // 2
+        start = (n_epochs - desired_window) // 2
         end = start + desired_window
-        epochs = all_epochs[start:end]
 
-        if not epochs:
-            print(f"Skipping {fname} due to lack of valid data.")
-            return None
-
-        # labels = extract_labels(annotation_mapping, fname, len(epochs))
-        # labels = labels if labels else ["unknown"] * len(epochs)
-        
-        # labels = extract_labels(annotation_mapping, fname, total_epochs)
-        # labels = labels[start:end] if labels else ["unknown"] * len(epochs)
-        # valid_labels = [l for l in labels if l not in ["unknown", "?"]]
-        # print(f"{fname}: valid labels in first 2hrs = {len(valid_labels)}/{len(labels)}")
-        
-        labels_full = extract_labels(annotation_mapping, fname, total_epochs)
-
-        # Sanity check
-        if len(labels_full) != total_epochs:
-            print(f"{fname}: label length mismatch. Got {len(labels_full)} vs {total_epochs}")
-
-        # Slice after label extraction
+        # Slice both EEG and labels using aligned window
+        eeg_epochs = all_epochs[start:end]
         labels = labels_full[start:end]
 
-        # Ensure length matches EEG
-        if len(labels) != len(epochs):
-            print(f"{fname}: Epoch-label mismatch. {len(epochs)} EEG vs {len(labels)} labels")
+        if len(eeg_epochs) != len(labels):
+            print(f"{fname}: Epoch-label length mismatch ({len(eeg_epochs)} vs {len(labels)}). Skipping.")
             return None
 
-        # Now safely count valid labels
+        # Check valid labels
         valid_labels = [l for l in labels if l not in ["unknown", "?"]]
         print(f"{fname}: valid labels in mid 2hrs = {len(valid_labels)}/{len(labels)}")
 
-
-
-
-        # Convert EEG data to lists before returning (avoid large numpy arrays)
-        entry = {
-            # "eeg_epochs": [epoch.tolist() for epoch in epochs],  
-            "eeg_epochs": [[float(np.float16(x)) for x in epoch] for epoch in epochs],
-            "file_name": fname,
-            "labels": labels,
-        }
-        print(f"Sample eeg_epoch[0][0]: {entry['eeg_epochs'][0][0]} ({type(entry['eeg_epochs'][0][0])})")
-
-        
-        if not isinstance(entry["eeg_epochs"], list) or not isinstance(entry["labels"], list):
-            print(f"Invalid data format in {fname}. Skipping.")
+        if not valid_labels:
+            print(f"{fname}: All labels are 'unknown' or '?'. Skipping.")
             return None
 
+        entry = {
+            "file_name": fname,
+            "eeg_epochs": [[float(np.float16(x)) for x in epoch] for epoch in eeg_epochs],
+            "labels": labels,
+        }
 
         raw.close()
-        del raw, eeg_signal, epochs
-        gc.collect()  # Explicitly free memory
+        del raw, eeg_signal, all_epochs, labels_full
+        gc.collect()
 
         return entry
 
     except Exception as e:
         print(f"Error processing {fname}: {e}")
         return None
+
     
 def chunkify(lst, n):
     """Split list `lst` into `n` approximately equal parts."""
