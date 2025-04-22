@@ -42,16 +42,54 @@ def load_annotation_mapping(data_dir):
     return mapping
 
 
-def extract_labels(annotation_mapping, file_name, num_epochs):
-    """Extract sleep stage labels from the corresponding TSV file."""
+# def extract_labels(annotation_mapping, file_name, num_epochs):
+#     """Extract sleep stage labels from the corresponding TSV file."""
+#     if file_name not in annotation_mapping:
+#         print(f"Annotation file not found for {file_name}. Skipping labels.")
+#         return ["unknown"] * num_epochs
+
+#     annotation_file = annotation_mapping[file_name]
+#     if not os.path.exists(annotation_file):
+#         print(f"Annotation file missing: {annotation_file}. Skipping labels.")
+#         return ["unknown"] * num_epochs
+
+#     tsv_data = pd.read_csv(
+#         annotation_file, sep="\t", header=0,
+#         names=["start_time", "duration", "annotation"], skiprows=1
+#     )
+
+#     tsv_data["start_time"] = pd.to_numeric(tsv_data["start_time"], errors="coerce")
+#     tsv_data["duration"] = pd.to_numeric(tsv_data["duration"], errors="coerce")
+
+#     sleep_stage_data = tsv_data[tsv_data["annotation"].str.contains("Sleep stage", na=False)]
+#     labels = ["unknown"] * num_epochs
+#     epoch_duration = 30.0  # seconds
+
+#     for _, row in sleep_stage_data.iterrows():
+#         start_time, duration, sleep_stage = row["start_time"], row["duration"], row["annotation"].replace("Sleep stage ", "").strip()
+#         if pd.isna(start_time) or pd.isna(duration):
+#             continue
+
+#         start_epoch = int(start_time // epoch_duration)
+#         num_epochs_for_row = max(1, int(np.round(duration / epoch_duration)))
+
+#         for i in range(num_epochs_for_row):
+#             current_epoch = start_epoch + i
+#             if 0 <= current_epoch < num_epochs:
+#                 labels[current_epoch] = sleep_stage
+
+#     return labels
+
+def extract_labels(annotation_mapping, file_name, num_epochs=None):
+    """Extract sleep stage labels from .tsv, correctly sized based on annotation range."""
     if file_name not in annotation_mapping:
         print(f"Annotation file not found for {file_name}. Skipping labels.")
-        return ["unknown"] * num_epochs
+        return []
 
     annotation_file = annotation_mapping[file_name]
     if not os.path.exists(annotation_file):
         print(f"Annotation file missing: {annotation_file}. Skipping labels.")
-        return ["unknown"] * num_epochs
+        return []
 
     tsv_data = pd.read_csv(
         annotation_file, sep="\t", header=0,
@@ -62,11 +100,20 @@ def extract_labels(annotation_mapping, file_name, num_epochs):
     tsv_data["duration"] = pd.to_numeric(tsv_data["duration"], errors="coerce")
 
     sleep_stage_data = tsv_data[tsv_data["annotation"].str.contains("Sleep stage", na=False)]
+    
+    # Infer number of epochs only from annotations if not provided
+    epoch_duration = 30.0
+    if num_epochs is None:
+        max_end_time = (sleep_stage_data["start_time"] + sleep_stage_data["duration"]).max()
+        num_epochs = int(max_end_time // epoch_duration)
+
     labels = ["unknown"] * num_epochs
-    epoch_duration = 30.0  # seconds
 
     for _, row in sleep_stage_data.iterrows():
-        start_time, duration, sleep_stage = row["start_time"], row["duration"], row["annotation"].replace("Sleep stage ", "").strip()
+        start_time = row["start_time"]
+        duration = row["duration"]
+        label = row["annotation"].replace("Sleep stage ", "").strip()
+
         if pd.isna(start_time) or pd.isna(duration):
             continue
 
@@ -74,11 +121,12 @@ def extract_labels(annotation_mapping, file_name, num_epochs):
         num_epochs_for_row = max(1, int(np.round(duration / epoch_duration)))
 
         for i in range(num_epochs_for_row):
-            current_epoch = start_epoch + i
-            if 0 <= current_epoch < num_epochs:
-                labels[current_epoch] = sleep_stage
+            idx = start_epoch + i
+            if 0 <= idx < num_epochs:
+                labels[idx] = label
 
     return labels
+
 
 
 def process_single_file(args):
@@ -95,10 +143,10 @@ def process_single_file(args):
         all_epochs = split_into_epochs(eeg_signal, TARGET_SAMPLING_RATE)
         total_eeg_epochs = len(all_epochs)
 
-        labels_full = extract_labels(annotation_mapping, fname, total_eeg_epochs)
+        labels_full = extract_labels(annotation_mapping, fname)
         total_label_epochs = len(labels_full)
 
-        n_epochs = min(total_eeg_epochs, total_label_epochs)
+        n_epochs = min(len(all_epochs), len(labels_full))
         if n_epochs < 240:
             print(f"{fname}: Not enough data ({n_epochs} epochs). Skipping.")
             return None
