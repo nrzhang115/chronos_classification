@@ -93,16 +93,12 @@ def process_single_file(args):
 
         eeg_signal = raw.get_data(picks=[select_ch], units='uV')[0]
         all_epochs = split_into_epochs(eeg_signal, TARGET_SAMPLING_RATE)
+        total_eeg_epochs = len(all_epochs)
 
-        labels_full = extract_labels(annotation_mapping, fname, len(all_epochs))
+        labels_full = extract_labels(annotation_mapping, fname, total_eeg_epochs)
+        total_label_epochs = len(labels_full)
 
-        # Debug print #1: Compare lengths
-        print(f"{fname}: len(all_epochs) = {len(all_epochs)}, len(labels_full) = {len(labels_full)}")
-
-        # Debug print #2: Full label count
-        print(f"{fname}: Counter(full labels) = {Counter(labels_full)}")
-
-        n_epochs = min(len(all_epochs), len(labels_full))
+        n_epochs = min(total_eeg_epochs, total_label_epochs)
         if n_epochs < 240:
             print(f"{fname}: Not enough data ({n_epochs} epochs). Skipping.")
             return None
@@ -113,12 +109,21 @@ def process_single_file(args):
         eeg_epochs = all_epochs[start:end]
         labels = labels_full[start:end]
 
+        # --- DEBUG ZONE ---
+        if fname == "12160_4150.edf":
+            print("=" * 50)
+            print(f"DEBUG for {fname}")
+            print(f"Total EEG epochs: {total_eeg_epochs}")
+            print(f"Total label epochs: {total_label_epochs}")
+            print(f"Min aligned length: {n_epochs}")
+            print(f"Slice indices: start={start}, end={end}")
+            print(f"Full label counts: {Counter(labels_full)}")
+            print(f"Mid 2-hr label counts: {Counter(labels)}")
+            print("=" * 50)
+
         if len(eeg_epochs) != len(labels):
             print(f"{fname}: Epoch-label mismatch ({len(eeg_epochs)} vs {len(labels)}). Skipping.")
             return None
-
-        # Debug print #3: Mid-2hr label count
-        print(f"{fname}: mid labels = {Counter(labels)}")
 
         valid_labels = [l for l in labels if l not in ["unknown", "?"]]
         print(f"{fname}: valid labels in mid 2hrs = {len(valid_labels)}/{len(labels)}")
@@ -139,6 +144,7 @@ def process_single_file(args):
     except Exception as e:
         print(f"Error processing {fname}: {e}")
         return None
+
 
 
     
