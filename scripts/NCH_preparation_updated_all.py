@@ -9,6 +9,7 @@ import sleep_study as ss
 import gc
 import pandas as pd
 import pyarrow as pa
+from collections import Counter
 
 EPOCH_SEC_SIZE = ss.data.EPOCH_SEC_SIZE  # 30 seconds
 TARGET_SAMPLING_RATE = ss.info.REFERENCE_FREQ  # 100Hz
@@ -81,13 +82,8 @@ def extract_labels(annotation_mapping, file_name, num_epochs):
 
 
 def process_single_file(args):
-    """Process a single EEG file and extract mid 2hrs of aligned EEG + labels."""
     fname, data_dir, select_ch, annotation_mapping = args
     psg_path = os.path.join(data_dir, fname)
-
-    if not os.path.exists(psg_path):
-        print(f"File {fname} not found. Skipping.")
-        return None
 
     try:
         raw = read_raw_edf(psg_path, preload=False)
@@ -97,31 +93,33 @@ def process_single_file(args):
 
         eeg_signal = raw.get_data(picks=[select_ch], units='uV')[0]
         all_epochs = split_into_epochs(eeg_signal, TARGET_SAMPLING_RATE)
-        total_eeg_epochs = len(all_epochs)
 
-        labels_full = extract_labels(annotation_mapping, fname, total_eeg_epochs)
-        total_label_epochs = len(labels_full)
+        labels_full = extract_labels(annotation_mapping, fname, len(all_epochs))
 
-        # Align lengths just in case
-        n_epochs = min(total_eeg_epochs, total_label_epochs)
+        # Debug print #1: Compare lengths
+        print(f"{fname}: len(all_epochs) = {len(all_epochs)}, len(labels_full) = {len(labels_full)}")
+
+        # Debug print #2: Full label count
+        print(f"{fname}: Counter(full labels) = {Counter(labels_full)}")
+
+        n_epochs = min(len(all_epochs), len(labels_full))
         if n_epochs < 240:
             print(f"{fname}: Not enough data ({n_epochs} epochs). Skipping.")
             return None
 
-        # Middle 2 hours = 240 epochs
-        desired_window = 240
-        start = (n_epochs - desired_window) // 2
-        end = start + desired_window
+        start = (n_epochs - 240) // 2
+        end = start + 240
 
-        # Slice both EEG and labels using aligned window
         eeg_epochs = all_epochs[start:end]
         labels = labels_full[start:end]
 
         if len(eeg_epochs) != len(labels):
-            print(f"{fname}: Epoch-label length mismatch ({len(eeg_epochs)} vs {len(labels)}). Skipping.")
+            print(f"{fname}: Epoch-label mismatch ({len(eeg_epochs)} vs {len(labels)}). Skipping.")
             return None
 
-        # Check valid labels
+        # Debug print #3: Mid-2hr label count
+        print(f"{fname}: mid labels = {Counter(labels)}")
+
         valid_labels = [l for l in labels if l not in ["unknown", "?"]]
         print(f"{fname}: valid labels in mid 2hrs = {len(valid_labels)}/{len(labels)}")
 
@@ -136,14 +134,12 @@ def process_single_file(args):
         }
 
         raw.close()
-        del raw, eeg_signal, all_epochs, labels_full
-        gc.collect()
-
         return entry
 
     except Exception as e:
         print(f"Error processing {fname}: {e}")
         return None
+
 
     
 def chunkify(lst, n):
