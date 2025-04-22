@@ -120,10 +120,29 @@ def process_single_file(args):
         # labels = extract_labels(annotation_mapping, fname, len(epochs))
         # labels = labels if labels else ["unknown"] * len(epochs)
         
-        labels = extract_labels(annotation_mapping, fname, total_epochs)
-        labels = labels[start:end] if labels else ["unknown"] * len(epochs)
+        # labels = extract_labels(annotation_mapping, fname, total_epochs)
+        # labels = labels[start:end] if labels else ["unknown"] * len(epochs)
+        # valid_labels = [l for l in labels if l not in ["unknown", "?"]]
+        # print(f"{fname}: valid labels in first 2hrs = {len(valid_labels)}/{len(labels)}")
+        
+        labels_full = extract_labels(annotation_mapping, fname, total_epochs)
+
+        # Sanity check
+        if len(labels_full) != total_epochs:
+            print(f"{fname}: label length mismatch. Got {len(labels_full)} vs {total_epochs}")
+
+        # Slice after label extraction
+        labels = labels_full[start:end]
+
+        # Ensure length matches EEG
+        if len(labels) != len(epochs):
+            print(f"{fname}: Epoch-label mismatch. {len(epochs)} EEG vs {len(labels)} labels")
+            return None
+
+        # Now safely count valid labels
         valid_labels = [l for l in labels if l not in ["unknown", "?"]]
-        print(f"{fname}: valid labels in first 2hrs = {len(valid_labels)}/{len(labels)}")
+        print(f"{fname}: valid labels in mid 2hrs = {len(valid_labels)}/{len(labels)}")
+
 
 
 
