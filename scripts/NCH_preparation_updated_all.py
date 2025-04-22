@@ -157,17 +157,18 @@ def process_single_file(args):
         eeg_epochs = all_epochs[start:end]
         labels = labels_full[start:end]
 
-        # --- DEBUG ZONE ---
-        if fname == "12160_4150.edf":
-            print("=" * 50)
-            print(f"DEBUG for {fname}")
-            print(f"Total EEG epochs: {total_eeg_epochs}")
-            print(f"Total label epochs: {total_label_epochs}")
-            print(f"Min aligned length: {n_epochs}")
-            print(f"Slice indices: start={start}, end={end}")
-            print(f"Full label counts: {Counter(labels_full)}")
-            print(f"Mid 2-hr label counts: {Counter(labels)}")
-            print("=" * 50)
+        # DEBUG ZONE STARTS
+        # if fname == "12160_4150.edf":
+        #     print("=" * 50)
+        #     print(f"DEBUG for {fname}")
+        #     print(f"Total EEG epochs: {total_eeg_epochs}")
+        #     print(f"Total label epochs: {total_label_epochs}")
+        #     print(f"Min aligned length: {n_epochs}")
+        #     print(f"Slice indices: start={start}, end={end}")
+        #     print(f"Full label counts: {Counter(labels_full)}")
+        #     print(f"Mid 2-hr label counts: {Counter(labels)}")
+        #     print("=" * 50)
+        # DEBUG ZONE ENDS
 
         if len(eeg_epochs) != len(labels):
             print(f"{fname}: Epoch-label mismatch ({len(eeg_epochs)} vs {len(labels)}). Skipping.")
