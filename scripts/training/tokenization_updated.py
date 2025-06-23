@@ -98,8 +98,8 @@ def main_tokenization():
     
 
     # Tokenizer Configuration
-    context_length = 4096  # Length of each sequence (512 tokens) #Longformer: 4096
-    n_tokens = 4096 #4096 original 
+    context_length = 3000  # Length of each sequence (512 tokens) #Longformer: 4096
+    n_tokens = 3000 #4096 original 
     tokenizer_class = "MeanScaleUniformBins"
     # tokenizer_kwargs = {"low_limit": -15.0, "high_limit": 15.0}
     tokenizer_kwargs = {"low_limit": -20.0, "high_limit": 20.0}
