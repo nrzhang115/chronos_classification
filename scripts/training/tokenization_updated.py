@@ -93,8 +93,7 @@ class ChronosEpochTokenizer:
 def main_tokenization():
     # Input and output paths
     arrow_file_path = "/srv/scratch/z5298768/chronos_classification_local/prepare_time_series/nch_sleep_data_18plus.arrow"
-    output_dir = "/srv/scratch/z5298768/chronos_classification_local/BERT_tokenization_18plus
-    "
+    output_dir = "/srv/scratch/z5298768/chronos_classification_local/BERT_tokenization_18plus"
     os.makedirs(output_dir, exist_ok=True)
     
 
