@@ -20,8 +20,14 @@ demo_df = pd.read_csv(DEMOGRAPHIC_CSV)
 demo_df["BIRTH_DATE"] = pd.to_datetime(
     demo_df["BIRTH_DATE"], format="%m/%d/%Y", errors="coerce"
 )
-today = pd.Timestamp.now().normalize()
-demo_df["AGE_YEARS"] = (today - demo_df["BIRTH_DATE"]).dt.days / 365.25
+# today = pd.Timestamp.now().normalize()
+# Use a fixed reference: NCH was published in 2019
+reference_date = pd.Timestamp("2020-01-01")
+demo_df["AGE_YEARS"] = (
+    reference_date - demo_df["BIRTH_DATE"]
+).dt.days / 365.25
+
+# Then your adult_ids as before:
 adult_ids = set(
     demo_df.loc[demo_df["AGE_YEARS"] >= 18, "STUDY_PAT_ID"].astype(str)
 )
@@ -122,6 +128,7 @@ def process_single_file(args):
         if n < 240:
             print(f"{fname}: only {n} epochs (<240).")
             return None
+        # Middle two hours 
 
         start = (n - 240) // 2
         end   = start + 240
