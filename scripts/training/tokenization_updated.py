@@ -92,14 +92,15 @@ class ChronosEpochTokenizer:
 
 def main_tokenization():
     # Input and output paths
-    arrow_file_path = "/srv/scratch/z5298768/chronos_classification_local/prepare_time_series/nch_sleep_data_mid_2hrs_all.arrow"
-    output_dir = "/srv/scratch/z5298768/chronos_classification_local/longformer_tokenization_updated_mid_2hrs"
+    arrow_file_path = "/srv/scratch/z5298768/chronos_classification_local/prepare_time_series/nch_sleep_data_18plus.arrow"
+    output_dir = "/srv/scratch/z5298768/chronos_classification_local/BERT_tokenization_18plus
+    "
     os.makedirs(output_dir, exist_ok=True)
     
 
     # Tokenizer Configuration
-    context_length = 1024  # Length of each sequence (512 tokens) #Longformer: 4096
-    n_tokens = 1024 #4096 original #1024
+    context_length = 512  # Length of each sequence (512 tokens) #Longformer: 4096
+    n_tokens = 512 
     tokenizer_class = "MeanScaleUniformBins"
     # tokenizer_kwargs = {"low_limit": -15.0, "high_limit": 15.0}
     tokenizer_kwargs = {"low_limit": -20.0, "high_limit": 20.0}
@@ -161,7 +162,7 @@ def main_tokenization():
         total_count += 1
 
         if len(tokenized_data) >= chunk_size:
-            chunk_path = os.path.join(output_dir, f"tokenized_chunk_{chunk_index}.pt")
+            chunk_path = os.path.join(output_dir, f"2hrs_tokenized_chunk_{chunk_index}.pt")
             torch.save(tokenized_data, chunk_path)
             print(f"Saved chunk {chunk_index} with {len(tokenized_data)} entries to {chunk_path}")
             tokenized_data = []
