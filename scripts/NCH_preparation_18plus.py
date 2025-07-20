@@ -124,16 +124,28 @@ def process_single_file(args):
         # 3) epoch and label
         epochs = split_into_epochs(eeg, TARGET_SAMPLING_RATE)
         labels_full = extract_labels(annotation_mapping, fname)
-        n = min(len(epochs), len(labels_full))
-        if n < 240:
-            print(f"{fname}: only {n} epochs (<240).")
-            return None
-        # Middle two hours 
+        # n = min(len(epochs), len(labels_full))
+        # if n < 240:
+        #     print(f"{fname}: only {n} epochs (<240).")
+        #     return None
+        # # Middle two hours 
 
-        start = (n - 240) // 2
-        end   = start + 240
-        eeg_epochs = epochs[start:end]
-        sliced     = labels_full[start:end]
+        # start = (n - 240) // 2
+        # end   = start + 240
+        # eeg_epochs = epochs[start:end]
+        # sliced     = labels_full[start:end]
+
+        # use all epochs, not just the middle 2 hrs
+        eeg_epochs  = epochs
+        sliced      = labels_full
+
+        # to avoid any mis‐alignment if the TSV produced more/fewer labels than you got epochs
+
+        if len(eeg_epochs) != len(sliced):
+            n = min(len(eeg_epochs), len(sliced))
+            eeg_epochs = eeg_epochs[:n]
+            sliced     = sliced[:n]
+
 
         # 4) map N1/N2/N3 → non-REM
         labels = [
